@@ -17,8 +17,13 @@ jobs:
 
       - uses: asdf-vm/actions/setup@v3
         with:
-          asdf-version: "v0.13.1"
-          tool-versions: ".tool-versions"
+          asdf-version: 'v0.13.1'
+          tool-versions: '.tool-versions'
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 10.6.5
+          run_install: false
 
       - name: Cache asdf & pnpm
         uses: actions/cache@v4
