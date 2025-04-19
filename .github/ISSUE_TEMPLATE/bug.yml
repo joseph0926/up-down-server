@@ -1,0 +1,40 @@
+name: 버그
+description: 버그 이슈
+labels: [bug]
+assignees: ["joseph0926"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 문제 설명
+      description: 문제에 대한 자세한 설명을 작성합니다.
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+
+  - type: input
+    id: steps
+    attributes:
+      label: 재현 절차
+      placeholder: |
+        1. pnpm dev
+        2. POST /api/v1/login
+        3. …
+    validations:
+      required: true
+
+  - type: input
+    id: expected
+    attributes:
+      label: 기대 동작
+      placeholder: 정상적으로 200 OK와 함께 …
+    validations:
+      required: true
+
+  - type: input
+    id: env
+    attributes:
+      label: 실행 환경
+      placeholder: macOS 14 / Node 22.0.0 / pnpm 10.6.5

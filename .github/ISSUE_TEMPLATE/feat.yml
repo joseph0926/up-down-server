@@ -1,0 +1,19 @@
+name: 기능
+description: 새로운 기능 개선사항 이슈
+labels: [enhancement]
+body:
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 기능 설명
+      description: 개선 또는 구현하려는 기능에 대한 설명
+    validations:
+      required: true
+  - type: checkboxes
+    id: scopes
+    attributes:
+      label: 영향 범위
+      options:
+        - label: API 변경
+        - label: DB 스키마 변경
+        - label: 문서 추가/수정
