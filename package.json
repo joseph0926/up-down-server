@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
@@ -16,8 +17,7 @@
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
       "eslint --fix",
-      "prettier --write",
-      "tsc --noEmit"
+      "prettier --write"
     ]
   },
   "keywords": [],
@@ -26,7 +26,10 @@
   "packageManager": "pnpm@10.6.5",
   "dependencies": {
     "@fastify/swagger": "^9.5.0",
-    "fastify": "^5.3.2"
+    "envalid": "^8.0.0",
+    "fastify": "^5.3.2",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
@@ -41,6 +44,7 @@
     "eslint-plugin-unused-imports": "^4.1.4",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.1",
+    "pino-loki": "^2.5.0",
     "prettier": "^3.5.3",
     "prisma": "^6.6.0",
     "tsx": "^4.19.3",

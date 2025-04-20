@@ -1,17 +1,18 @@
 {
   "compilerOptions": {
     "target": "es2022",
-    "module": "node16",
-    "moduleResolution": "node16",
-    "baseUrl": "./src",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "baseUrl": ".",
     "outDir": "./dist",
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "strict": true,
     "skipLibCheck": true,
     "paths": {
-      "@/*": ["./src/*"]
-    }
+      "./*": ["./*.ts"]
+    },
+    "allowImportingTsExtensions": false
   },
   "include": ["src/**/*"]
 }
