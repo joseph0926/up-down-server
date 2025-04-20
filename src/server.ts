@@ -1,41 +1,11 @@
 import Fastify from 'fastify';
-import pino from 'pino';
 
-import { config } from './libs/env.js';
+import { pinoLoggerOption } from './libs/logger.js';
 import { genRequestId } from './libs/request-id.js';
-
-const isProd = config.NODE_ENV === 'production';
-
-const commonPinoOpts: pino.LoggerOptions = {
-  level: config.LOG_LEVEL ?? (isProd ? 'info' : 'debug'),
-  base: undefined,
-  serializers: { err: pino.stdSerializers.err },
-  redact: ['req.headers.authorization', 'password'],
-};
 
 export async function buildServer() {
   const app = Fastify({
-    logger: isProd
-      ? {
-          ...commonPinoOpts,
-          transport: {
-            target: 'pino-loki',
-            options: {
-              host: config.LOKI_HOST,
-              basicAuth: config.LOKI_TOKEN,
-              labels: { app: 'up-down', env: config.NODE_ENV },
-              interval: 5_000,
-              timeout: 10_000,
-            },
-          },
-        }
-      : {
-          ...commonPinoOpts,
-          transport: {
-            target: 'pino-pretty',
-            options: { colorize: true, translateTime: 'yyyy-mm-dd HH:MM:ss.l' },
-          },
-        },
+    logger: pinoLoggerOption,
     genReqId: genRequestId,
   });
 

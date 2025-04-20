@@ -7,7 +7,8 @@ export const validators = {
   PORT: port({ default: 3000 }),
   LOG_LEVEL: str({ default: 'info' }),
   LOKI_HOST: str(),
-  LOKI_TOKEN: str({ devDefault: '' }),
+  LOKI_USERNAME: str(),
+  LOKI_PASSWORD: str(),
   DATABASE_URL: str({ devDefault: '' }),
 };
 
