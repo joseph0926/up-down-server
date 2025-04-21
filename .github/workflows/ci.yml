@@ -31,12 +31,16 @@ jobs:
           path: |
             ~/.asdf/installs
             ~/.asdf/download
-            ~/.local/share/pnpm/store  # pnpm 글로벌 스토어
+            ~/.local/share/pnpm/store
           key: ${{ runner.os }}-asdf-${{ hashFiles('.tool-versions','pnpm-lock.yaml') }}
 
       - run: node -v
 
-      - run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm prisma generate
 
       - run: pnpm lint
       - run: pnpm format
