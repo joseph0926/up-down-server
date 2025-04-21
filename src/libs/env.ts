@@ -9,6 +9,8 @@ export const validators = {
   LOKI_HOST: str(),
   LOKI_USERNAME: str(),
   LOKI_PASSWORD: str(),
+  RATE_LIMIT_MAX: str(),
+  RATE_LIMIT_WINDOW: str(),
   DATABASE_URL: str({ devDefault: '' }),
 };
 
