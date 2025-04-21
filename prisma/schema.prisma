@@ -1,9 +1,70 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum Side {
+  PRO
+  CON
+}
+
+model Category {
+  id      Int      @id @default(autoincrement())
+  name    String   @unique
+  slug    String   @unique
+  debates Debate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Debate {
+  id         String    @id @default(cuid())
+  title      String
+  content    String?
+  createdAt  DateTime  @default(now())
+  deadline   DateTime
+  closedAt   DateTime?
+  categoryId Int?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  proCount Int @default(0)
+  conCount Int @default(0)
+
+  comments Comment[]
+
+  @@index([deadline])
+}
+
+model Comment {
+  id       String @id @default(cuid())
+  debateId String
+  debate   Debate @relation(fields: [debateId], references: [id])
+
+  nickname  String
+  content   String
+  side      Side
+  likes     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  likesLog CommentLike[]
+
+  @@index([debateId, side])
+}
+
+model CommentLike {
+  id        String  @id @default(cuid())
+  commentId String
+  comment   Comment @relation(fields: [commentId], references: [id])
+
+  ipHash String
+
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, ipHash])
+  @@index([ipHash])
 }
