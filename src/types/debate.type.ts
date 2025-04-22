@@ -4,8 +4,8 @@ export interface DebateSummaryDTO {
   id: string;
   title: string;
   deadline: string;
-  proCount: number;
-  conCount: number;
+  proRatio: number;
+  conRatio: number;
 }
 
 export interface DebateDetailDTO extends DebateSummaryDTO {

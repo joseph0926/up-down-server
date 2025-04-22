@@ -13,3 +13,10 @@ export interface ApiError {
 }
 
 export type ApiResponse<T> = ApiSuccess<T> | ApiError;
+
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+  page: number;
+  size: number;
+}

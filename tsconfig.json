@@ -10,7 +10,7 @@
     "strict": true,
     "skipLibCheck": true,
     "paths": {
-      "./*": ["./*.ts"]
+      "@/*": ["./src/*.ts"]
     },
     "allowImportingTsExtensions": false
   },
