@@ -5,11 +5,19 @@ import cors from '@fastify/cors';
 import csrf from '@fastify/csrf-protection';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import swagger from '@fastify/swagger';
+import swaggerUI from '@fastify/swagger-ui';
 import Fastify, { FastifyError } from 'fastify';
+import {
+  jsonSchemaTransform,
+  serializerCompiler,
+  validatorCompiler,
+} from 'fastify-type-provider-zod';
 
 import { config } from './libs/env.js';
 import { pinoLoggerOption } from './libs/logger.js';
 import { genRequestId } from './libs/request-id.js';
+import { registerDebateRoutes } from './routes/debate.route.js';
 
 function isValidationError(err: FastifyError): err is FastifyError & { validation: unknown } {
   return 'validation' in err && err.validation !== undefined;
@@ -20,7 +28,9 @@ export async function buildServer() {
     logger: pinoLoggerOption,
     genReqId: genRequestId,
     trustProxy: true,
-  });
+  })
+    .setValidatorCompiler(validatorCompiler)
+    .setSerializerCompiler(serializerCompiler);
 
   await app.register(helmet, {
     global: true,
@@ -46,9 +56,16 @@ export async function buildServer() {
     await app.register(csrf, { cookieOpts: { sameSite: 'lax', path: '/' } });
   }
 
-  app.addHook('onRequest', req => {
-    req.startTime = Date.now();
-    req.log = req.log.child({ traceId: req.id });
+  await app.register(swagger, {
+    openapi: {
+      info: { title: 'Up&Down API', version: '1.0.0' },
+      tags: [{ name: 'Debate', description: '찬반 토론' }],
+    },
+    transform: jsonSchemaTransform,
+  });
+  await app.register(swaggerUI, {
+    routePrefix: '/docs',
+    uiConfig: { docExpansion: 'list' },
   });
 
   app.addHook('onResponse', (req, reply) => {
@@ -59,6 +76,7 @@ export async function buildServer() {
   });
 
   app.get('/health', { config: { rateLimit: false, cors: false } }, () => ({ status: 'ok' }));
+  app.register(registerDebateRoutes, { prefix: '/' });
 
   app.setErrorHandler((err, req, reply) => {
     const level: 'warn' | 'error' = isValidationError(err) ? 'warn' : 'error';

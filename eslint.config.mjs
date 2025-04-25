@@ -11,7 +11,7 @@ export default [
     files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
       parser: tseslint.parser,
-      parserOptions: { project: true },
+      parserOptions: { project: ['./tsconfig.eslint.json'] },
     },
     plugins: {
       import: (await import('eslint-plugin-import')).default,

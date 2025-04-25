@@ -1,6 +1,6 @@
 import { ApiError, ApiErrorCode, ApiSuccess } from '../../types/common.type.js';
 
-export const ok = <T>(data: T, message: string): ApiSuccess<T> => {
+export const ok = <T>(data: T, message = ''): ApiSuccess<T> => {
   return { success: true, data, message };
 };
 

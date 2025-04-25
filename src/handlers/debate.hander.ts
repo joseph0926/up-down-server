@@ -3,27 +3,21 @@ import { z } from 'zod';
 
 import { fetchDebatePage } from '@/controllers/debate.controller';
 import { fail, ok } from '@/libs/utils/api';
-import { getDebateListQuery, GetDebateListQueryType } from '@/schemas/debate.schema';
+import { getDebateListQuery } from '@/schemas/debate.schema';
 
-export async function getDebatesHandler(request: FastifyRequest, reply: FastifyReply) {
+export async function getDebatesHandler(req: FastifyRequest, reply: FastifyReply) {
   try {
-    const parsed = getDebateListQuery.parse(request.query);
-    const params: Required<GetDebateListQueryType> = {
-      page: parsed.page ?? 1,
-      size: parsed.size ?? 20,
-      status: parsed.status ?? 'ongoing',
-      category: parsed.category ?? '',
-      sort: parsed.sort ?? 'deadline',
-    };
-
+    const params = getDebateListQuery.parse(req.query);
     const data = await fetchDebatePage(params);
-
     return reply.status(200).send(ok(data, ''));
   } catch (err) {
     if (err instanceof z.ZodError) {
       return reply.status(400).send(fail('VALIDATION', err.errors[0].message));
     }
-    request.log.error({ err }, 'getDebatesHandler failed');
+    if (err instanceof Error && err.message === 'CATEGORY_NOT_FOUND') {
+      return reply.status(404).send(fail('NOT_FOUND', '카테고리가 존재하지 않습니다.'));
+    }
+    req.log.error({ err }, 'getDebatesHandler failed');
     return reply.status(500).send(fail('INTERNAL', 'Internal Server Error'));
   }
 }
