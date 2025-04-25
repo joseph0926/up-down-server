@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { apiSuccess, paginated } from './common.schema.js';
 
-export const getDebateListQuery = z.object({
+export const getDebateListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   size: z.coerce.number().int().min(5).max(100).default(20),
   status: z.enum(['ongoing', 'closed']).default('ongoing'),
@@ -13,10 +13,10 @@ export const getDebateListQuery = z.object({
     .transform(v => (v === '' ? undefined : v)),
   sort: z.enum(['deadline', 'latest']).default('deadline'),
 });
-export type GetDebateListQuery = z.infer<typeof getDebateListQuery>;
+export type GetDebateListQuery = z.infer<typeof getDebateListQuerySchema>;
 
 export const debateSummarySchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().cuid(),
   title: z.string(),
   deadline: z.string().datetime(),
   proRatio: z.number().min(0).max(1),
@@ -25,24 +25,27 @@ export const debateSummarySchema = z.object({
 export type DebateSummary = z.infer<typeof debateSummarySchema>;
 
 export const commentSchema = z.object({
-  id: z.string().uuid(),
-  author: z.string(),
+  id: z.string().cuid(),
+  nickname: z.string(),
   content: z.string(),
+  side: z.enum(['PRO', 'CON']),
+  likes: z.number().int().nonnegative(),
   createdAt: z.string().datetime(),
 });
 export type CommentDTO = z.infer<typeof commentSchema>;
 
 export const debateDetailSchema = debateSummarySchema.extend({
-  content: z.string().nullable().optional(),
+  content: z.string().nullable(),
   comments: z.array(commentSchema),
 });
 export type DebateDetail = z.infer<typeof debateDetailSchema>;
 
 export const debateList200Schema = paginated(debateSummarySchema);
-export type DebateList200 = z.infer<typeof debateList200Schema>;
-
 export const debatePageSuccessSchema = apiSuccess(debateList200Schema);
+export const debateDetailSuccessSchema = apiSuccess(debateDetailSchema);
+
 export type DebatePageSuccess = z.infer<typeof debatePageSuccessSchema>;
+export type DebateDetailSuccess = z.infer<typeof debateDetailSuccessSchema>;
 
 export const createDebateBodySchema = z.object({
   title: z.string().min(1).max(120),

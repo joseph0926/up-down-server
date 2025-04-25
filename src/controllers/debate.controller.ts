@@ -1,72 +1,83 @@
 import { Prisma } from '@prisma/client';
 import { FastifyError } from 'fastify';
-import { z } from 'zod';
 
 import { prisma } from '@/libs/prisma';
 import {
   createDebateRepo,
-  DebateSummaryRow,
-  debateSummarySelect,
+  getDebateDetailRepo,
+  getDebatePageRepo,
 } from '@/repositories/debate.repo';
-import { paginated } from '@/schemas/common.schema';
-import type {
-  CreateDebateBody,
-  CreateDebateSuccess,
-  GetDebateListQuery,
+import { DebateSummaryRow } from '@/repositories/debate.select';
+import type { CreateDebateBody, CreateDebateSuccess } from '@/schemas/debate.schema';
+import {
+  debateDetailSuccessSchema,
+  debatePageSuccessSchema,
+  getDebateListQuerySchema,
 } from '@/schemas/debate.schema';
-import { debateSummarySchema } from '@/schemas/debate.schema';
 
-const paginatedDebateSchema = paginated(debateSummarySchema);
-export type PaginatedDebate = z.infer<typeof paginatedDebateSchema>;
-
-export async function fetchDebatePage(params: GetDebateListQuery): Promise<PaginatedDebate> {
-  const { page, size, status, category, sort } = params;
-  const now = new Date();
-
-  let categoryFilter: Prisma.DebateWhereInput = {};
-  if (category) {
-    const cat = await prisma.category.findUnique({
-      where: { slug: category },
-      select: { id: true },
-    });
-
-    if (!cat) {
-      throw new Error('CATEGORY_NOT_FOUND');
-    }
-    categoryFilter = { categoryId: cat.id };
+export class AppError extends Error {
+  constructor(
+    public code: 'NOT_FOUND' | 'INTERNAL',
+    message: string,
+  ) {
+    super(message);
   }
+}
 
-  const where = {
-    ...(status === 'ongoing' && { deadline: { gt: now } }),
-    ...(status === 'closed' && { deadline: { lte: now } }),
-    ...categoryFilter,
-  } satisfies Prisma.DebateWhereInput;
+export const getDebatePageController = async (rawQuery: unknown) => {
+  const { page, size, status, category, sort } = getDebateListQuerySchema.parse(rawQuery);
 
+  const now = new Date();
+  const where: Prisma.DebateWhereInput = {
+    ...(status === 'ongoing'
+      ? { deadline: { gt: now } }
+      : status === 'closed'
+        ? { deadline: { lte: now } }
+        : {}),
+    ...(category ? { category: { slug: category } } : {}),
+  };
   const orderBy =
     sort === 'latest' ? ({ createdAt: 'desc' } as const) : ({ deadline: 'asc' } as const);
 
-  const skip = (page - 1) * size;
+  const [total, rows] = await getDebatePageRepo(where, orderBy, (page - 1) * size, size);
 
-  const [total, rows]: [number, DebateSummaryRow[]] = await Promise.all([
-    prisma.debate.count({ where }),
-    prisma.debate.findMany({
-      where,
-      orderBy,
-      skip,
-      take: size,
-      select: debateSummarySelect,
-    }),
-  ]);
+  if (category && total === 0) {
+    const exists = await prisma.category.count({ where: { slug: category } });
+    if (!exists) throw new AppError('NOT_FOUND', 'CATEGORY_NOT_FOUND');
+  }
 
   const items = rows.map(mapToSummary);
 
-  return paginatedDebateSchema.parse({ items, total, page, size });
-}
+  return debatePageSuccessSchema.parse({
+    success: true,
+    data: { items, total, page, size },
+    message: '',
+  });
+};
+
+export const getDebateDetailController = async (id: string) => {
+  const row = await getDebateDetailRepo(id);
+  if (!row) throw new AppError('NOT_FOUND', 'DEBATE_NOT_FOUND');
+
+  const summary = mapToSummary(row);
+  return debateDetailSuccessSchema.parse({
+    success: true,
+    data: {
+      ...summary,
+      content: row.content,
+      comments: row.comments.map(c => ({
+        ...c,
+        createdAt: c.createdAt.toISOString(),
+      })),
+    },
+    message: '',
+  });
+};
 
 function mapToSummary(row: DebateSummaryRow) {
   const sum = row.proCount + row.conCount;
-  const [proRatio, conRatio] = sum === 0 ? [0, 0] : [row.proCount / sum, row.conCount / sum];
-
+  const proRatio = sum === 0 ? 0 : row.proCount / sum;
+  const conRatio = sum === 0 ? 0 : row.conCount / sum;
   return {
     id: row.id,
     title: row.title,

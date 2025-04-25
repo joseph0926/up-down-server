@@ -4,6 +4,9 @@ export const ok = <T>(data: T, message = ''): ApiSuccess<T> => {
   return { success: true, data, message };
 };
 
-export const fail = (code: ApiErrorCode, message: string): ApiError => {
-  return { success: false, code, message };
-};
+export const fail = (code: ApiErrorCode, message: string): ApiError => ({
+  success: false,
+  code,
+  message,
+  data: null,
+});

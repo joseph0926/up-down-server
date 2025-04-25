@@ -1,43 +1,70 @@
 import { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 
-import { createDebateHandler, getDebatesHandler } from '@/handlers/debate.hander';
+import {
+  createDebateHandler,
+  getDebateDetailHandler,
+  getDebatesHandler,
+} from '@/handlers/debate.hander';
 import { failSchema } from '@/schemas/common.schema';
 import {
   createDebateBodySchema,
   createDebateSuccessSchema,
+  debateDetailSuccessSchema,
   debatePageSuccessSchema,
-  getDebateListQuery,
+  getDebateListQuerySchema,
 } from '@/schemas/debate.schema';
 
-export function registerDebateRoutes(app: FastifyInstance) {
+export const registerDebateRoutes = (app: FastifyInstance) => {
   app.get(
     '/',
     {
       schema: {
-        querystring: getDebateListQuery,
+        tags: ['Debate'],
+        summary: '토론 목록',
+        querystring: getDebateListQuerySchema,
         response: {
           200: debatePageSuccessSchema,
           400: failSchema,
           404: failSchema,
+          500: failSchema,
         },
-        tags: ['Debate'],
-        summary: '토론 목록 조회',
       },
     },
     getDebatesHandler,
+  );
+  app.get(
+    '/:id',
+    {
+      schema: {
+        tags: ['Debate'],
+        summary: '토론 상세',
+        params: z.object({ id: z.string().cuid() }),
+        response: {
+          200: debateDetailSuccessSchema,
+          400: failSchema,
+          404: failSchema,
+          500: failSchema,
+        },
+      },
+    },
+    getDebateDetailHandler,
   );
   app.post(
     '/',
     {
       schema: {
-        description: '새 토론 생성',
         tags: ['Debate'],
+        description: '새 토론 생성',
         body: createDebateBodySchema,
         response: {
           201: createDebateSuccessSchema,
+          400: failSchema,
+          404: failSchema,
+          500: failSchema,
         },
       },
     },
     createDebateHandler,
   );
-}
+};

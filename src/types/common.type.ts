@@ -10,6 +10,7 @@ export interface ApiError {
   success: false;
   code: ApiErrorCode;
   message: string;
+  data: null;
 }
 
 export type ApiResponse<T> = ApiSuccess<T> | ApiError;

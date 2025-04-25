@@ -26,3 +26,13 @@ export const createCategorySuccessSchema = apiSuccess(
 
 export type CreateCategoryBody = z.infer<typeof createCategoryBodySchema>;
 export type CreateCategorySuccess = z.infer<typeof createCategorySuccessSchema>;
+
+export const categoryDto = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  slug: z.string(),
+});
+export type CategoryDto = z.infer<typeof categoryDto>;
+
+export const getAllCategorySuccessSchema = apiSuccess(z.array(categoryDto));
+export type GetAllCategorySuccess = z.infer<typeof getAllCategorySuccessSchema>;

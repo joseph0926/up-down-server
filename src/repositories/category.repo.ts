@@ -14,3 +14,10 @@ export const createCategoryRepo = async (payload: CreateCategoryBody) => {
     },
   });
 };
+
+export const getAllCategoriesRepo = async () => {
+  return prisma.category.findMany({
+    orderBy: { id: 'asc' },
+    select: { id: true, name: true, slug: true },
+  });
+};

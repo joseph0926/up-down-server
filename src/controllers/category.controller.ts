@@ -1,7 +1,11 @@
 import { FastifyError } from 'fastify';
 
-import { createCategoryRepo } from '@/repositories/category.repo';
-import { CreateCategoryBody, CreateCategorySuccess } from '@/schemas/category.schema';
+import { createCategoryRepo, getAllCategoriesRepo } from '@/repositories/category.repo';
+import {
+  CreateCategoryBody,
+  CreateCategorySuccess,
+  getAllCategorySuccessSchema,
+} from '@/schemas/category.schema';
 
 export const createCategoryController = async (
   payload: CreateCategoryBody,
@@ -22,4 +26,13 @@ export const createCategoryController = async (
     }
     throw e;
   }
+};
+
+export const getAllCategoriesController = async () => {
+  const categories = await getAllCategoriesRepo();
+  return getAllCategorySuccessSchema.parse({
+    success: true,
+    data: categories,
+    message: '',
+  });
 };
