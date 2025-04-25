@@ -1,8 +1,13 @@
 import { FastifyInstance } from 'fastify';
 
-import { getDebatesHandler } from '@/handlers/debate.hander';
+import { createDebateHandler, getDebatesHandler } from '@/handlers/debate.hander';
 import { failSchema } from '@/schemas/common.schema';
-import { debatePageSuccessSchema, getDebateListQuery } from '@/schemas/debate.schema';
+import {
+  createDebateBodySchema,
+  createDebateSuccessSchema,
+  debatePageSuccessSchema,
+  getDebateListQuery,
+} from '@/schemas/debate.schema';
 
 export function registerDebateRoutes(app: FastifyInstance) {
   app.get(
@@ -20,5 +25,19 @@ export function registerDebateRoutes(app: FastifyInstance) {
       },
     },
     getDebatesHandler,
+  );
+  app.post(
+    '/debates',
+    {
+      schema: {
+        description: '새 토론 생성',
+        tags: ['Debate'],
+        body: createDebateBodySchema,
+        response: {
+          201: createDebateSuccessSchema,
+        },
+      },
+    },
+    createDebateHandler,
   );
 }

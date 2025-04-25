@@ -1,10 +1,19 @@
 import { Prisma } from '@prisma/client';
+import { FastifyError } from 'fastify';
 import { z } from 'zod';
 
 import { prisma } from '@/libs/prisma';
-import { DebateSummaryRow, debateSummarySelect } from '@/repositories/debate.repo';
+import {
+  createDebateRepo,
+  DebateSummaryRow,
+  debateSummarySelect,
+} from '@/repositories/debate.repo';
 import { paginated } from '@/schemas/common.schema';
-import type { GetDebateListQuery } from '@/schemas/debate.schema';
+import type {
+  CreateDebateBody,
+  CreateDebateSuccess,
+  GetDebateListQuery,
+} from '@/schemas/debate.schema';
 import { debateSummarySchema } from '@/schemas/debate.schema';
 
 const paginatedDebateSchema = paginated(debateSummarySchema);
@@ -66,3 +75,27 @@ function mapToSummary(row: DebateSummaryRow) {
     conRatio,
   };
 }
+
+export const createDebateController = async (
+  payload: CreateDebateBody,
+): Promise<CreateDebateSuccess> => {
+  try {
+    const debate = await createDebateRepo(payload);
+
+    return {
+      success: true,
+      data: {
+        id: debate.id,
+        title: debate.title,
+        deadline: debate.deadline.toISOString(),
+      },
+      message: '토론이 생성되었습니다.',
+    };
+  } catch (err) {
+    const e = err as FastifyError & { code?: string };
+    if (e.code === 'P2025') {
+      throw Object.assign(e, { statusCode: 404, message: '존재하지 않는 카테고리입니다.' });
+    }
+    throw e;
+  }
+};
