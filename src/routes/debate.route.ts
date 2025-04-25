@@ -11,7 +11,7 @@ import {
 
 export function registerDebateRoutes(app: FastifyInstance) {
   app.get(
-    '/debates',
+    '/',
     {
       schema: {
         querystring: getDebateListQuery,
@@ -27,7 +27,7 @@ export function registerDebateRoutes(app: FastifyInstance) {
     getDebatesHandler,
   );
   app.post(
-    '/debates',
+    '/',
     {
       schema: {
         description: '새 토론 생성',

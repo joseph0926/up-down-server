@@ -17,6 +17,7 @@ import {
 import { config } from './libs/env.js';
 import { pinoLoggerOption } from './libs/logger.js';
 import { genRequestId } from './libs/request-id.js';
+import { registerCategoryRoutes } from './routes/category.route.js';
 import { registerDebateRoutes } from './routes/debate.route.js';
 
 function isValidationError(err: FastifyError): err is FastifyError & { validation: unknown } {
@@ -76,7 +77,8 @@ export async function buildServer() {
   });
 
   app.get('/health', { config: { rateLimit: false, cors: false } }, () => ({ status: 'ok' }));
-  app.register(registerDebateRoutes, { prefix: '/' });
+  app.register(registerDebateRoutes, { prefix: '/debates' });
+  app.register(registerCategoryRoutes, { prefix: '/categories' });
 
   app.setErrorHandler((err, req, reply) => {
     const level: 'warn' | 'error' = isValidationError(err) ? 'warn' : 'error';
