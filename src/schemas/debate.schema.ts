@@ -21,6 +21,8 @@ export const debateSummarySchema = z.object({
   deadline: z.string().datetime(),
   proRatio: z.number().min(0).max(1),
   conRatio: z.number().min(0).max(1),
+  thumbUrl: z.string().nullable(),
+  smallUrl: z.string().nullable(),
 });
 export type DebateSummary = z.infer<typeof debateSummarySchema>;
 
