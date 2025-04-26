@@ -23,6 +23,7 @@ export const debateSummarySchema = z.object({
   conRatio: z.number().min(0).max(1),
   thumbUrl: z.string().nullable(),
   smallUrl: z.string().nullable(),
+  status: z.enum(['ongoing', 'closed']).default('ongoing'),
 });
 export type DebateSummary = z.infer<typeof debateSummarySchema>;
 

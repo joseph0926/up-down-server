@@ -8,6 +8,7 @@ export const debateSummarySelect = Prisma.validator<Prisma.DebateSelect>()({
   conCount: true,
   thumbUrl: true,
   smallUrl: true,
+  status: true,
 });
 export type DebateSummaryRow = Prisma.DebateGetPayload<{
   select: typeof debateSummarySelect;
