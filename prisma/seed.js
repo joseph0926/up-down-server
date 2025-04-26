@@ -1,4 +1,4 @@
-import { PrismaClient, Side } from '@prisma/client';
+import { PrismaClient, Status } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -36,44 +36,41 @@ const smallIds = [
 const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 const cdn = id => `https://res.cloudinary.com/${cloudName}/image/upload/${id}.jpg`;
 
-const debates = [
-  {
-    title: 'AI 추천 알고리즘, 선거 여론에 영향 줄까?',
-    categorySlug: 'tech',
-    thumbId: thumbIds[0],
-    smallId: smallIds[0],
-  },
-  {
-    title: '기본소득 도입, 경제 활성화에 도움이 될까?',
-    categorySlug: 'economy',
-    thumbId: thumbIds[1],
-    smallId: smallIds[1],
-  },
-  {
-    title: '탄소세 확대, 환경 보호 vs. 서민 부담?',
-    categorySlug: 'environment',
-    thumbId: thumbIds[2],
-    smallId: smallIds[2],
-  },
-  {
-    title: '스마트폰 사용 제한, 학업 성취도 향상될까?',
-    categorySlug: 'education',
-    thumbId: thumbIds[3],
-    smallId: smallIds[3],
-  },
-  {
-    title: 'BTS 군면제, 문화적 파급효과 vs. 형평성 논란?',
-    categorySlug: 'culture',
-    thumbId: thumbIds[4],
-    smallId: smallIds[4],
-  },
-  {
-    title: 'VAR 판독 시간, 축구 경기 흐름을 망치는가?',
-    categorySlug: 'sports',
-    thumbId: thumbIds[5],
-    smallId: smallIds[5],
-  },
+const SUBJECTS = [
+  'AI 추천 알고리즘',
+  '기본소득',
+  '탄소세 확대',
+  '스마트폰 사용 제한',
+  'BTS 병역 특례',
+  'VAR 판독',
+  '원자력 발전 확대',
+  '전기차 충전 인프라',
+  '온라인 수업 확대',
+  '대마초 합법화',
+  '로봇세 도입',
+  '거대 플랫폼 규제 강화',
+  '부유세 신설',
+  '주 4일제',
+  '치명적 감염병 전면 봉쇄',
+  '꼬마빌딩 공시가 상향',
+  '게임 셧다운제 폐지',
+  '동물원 존폐',
+  '우주 관광 상업화',
+  '유전자 편집 아기 허용',
 ];
+
+const ENDINGS = ['찬성 vs. 반대?', '도입이 필요할까?', '효과 있을까?', '형평성 논란?', '장단점은?'];
+
+const makeTitle = () => {
+  const sub = SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)];
+  const end = ENDINGS[Math.floor(Math.random() * ENDINGS.length)];
+  return `${sub}, ${end}`;
+};
+
+const makeContent = title =>
+  `${title}에 대한 여러분의 생각은 무엇인가요? 근거를 포함해 자유롭게 토론해 주세요.`;
+
+const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 async function main() {
   await Promise.all(
@@ -87,23 +84,49 @@ async function main() {
   );
   console.log(`✅  Seeded ${categories.length} categories`);
 
-  for (const [i, d] of debates.entries()) {
-    const deadline = new Date();
-    deadline.setDate(deadline.getDate() + (i + 1));
+  const TOTAL_DEBATES = 50;
+  const now = new Date();
+
+  for (let i = 0; i < TOTAL_DEBATES; i++) {
+    const cat = categories[i % categories.length];
+    const thumbId = thumbIds[i % thumbIds.length];
+    const smallId = smallIds[i % smallIds.length];
+
+    const isClosed = i % 4 === 0;
+    const deadline = new Date(now);
+    let status = Status.ongoing;
+    let closedAt = null;
+
+    if (isClosed) {
+      deadline.setDate(now.getDate() - rand(1, 7));
+      status = Status.closed;
+      closedAt = new Date(deadline);
+    } else {
+      deadline.setDate(now.getDate() + rand(1, 14));
+    }
+
+    const title = makeTitle();
+    const content = makeContent(title);
 
     await prisma.debate.create({
       data: {
-        title: d.title,
-        content:
-          d.content ?? '토론 내용을 자유롭게 입력하세요. 찬반 근거를 제시해 주시면 더욱 좋습니다.',
+        title,
+        content,
         deadline,
-        thumbUrl: cdn(d.thumbId),
-        smallUrl: cdn(d.smallId),
-        category: { connect: { slug: d.categorySlug } },
+        status,
+        closedAt,
+        thumbUrl: cdn(thumbId),
+        smallUrl: cdn(smallId),
+        proCount: rand(0, 1000),
+        conCount: rand(0, 1000),
+        category: {
+          connect: { slug: cat.slug },
+        },
       },
     });
   }
-  console.log(`✅  Seeded ${debates.length} debates`);
+
+  console.log(`✅  Seeded ${TOTAL_DEBATES} debates`);
 }
 
 async function run() {

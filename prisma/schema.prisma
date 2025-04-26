@@ -12,6 +12,11 @@ enum Side {
   CON
 }
 
+enum Status {
+  ongoing
+  closed
+}
+
 model Category {
   id      Int      @id @default(autoincrement())
   name    String   @unique
@@ -23,12 +28,15 @@ model Category {
 }
 
 model Debate {
-  id         String    @id @default(cuid())
-  title      String
-  content    String?
-  createdAt  DateTime  @default(now())
-  deadline   DateTime
-  closedAt   DateTime?
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  title    String
+  content  String?
+  deadline DateTime
+  status   Status
+  closedAt DateTime?
+
   categoryId Int?
   category   Category? @relation(fields: [categoryId], references: [id])
 
