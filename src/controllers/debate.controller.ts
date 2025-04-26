@@ -81,6 +81,8 @@ function mapToSummary(row: DebateSummaryRow) {
   return {
     id: row.id,
     title: row.title,
+    thumbUrl: row.thumbUrl,
+    smallUrl: row.smallUrl,
     deadline: row.deadline.toISOString(),
     proRatio,
     conRatio,

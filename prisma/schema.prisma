@@ -35,6 +35,9 @@ model Debate {
   proCount Int @default(0)
   conCount Int @default(0)
 
+  thumbUrl String? @map("thumb_url")
+  smallUrl String? @map("small_url")
+
   comments Comment[]
 
   @@index([deadline])
