@@ -1,5 +1,8 @@
 import { PrismaClient, Status } from '@prisma/client';
 
+import { redis } from '../src/libs/redis/index.js';
+import { keyComments, keyParticipants, keyViews, keyVotes } from '../src/libs/redis/keys.js';
+
 const prisma = new PrismaClient();
 
 const categories = [
@@ -33,8 +36,8 @@ const smallIds = [
   'diego-hernandez-MSepzbKFz10-unsplash_b1g4ho',
 ];
 
-const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-const cdn = id => `https://res.cloudinary.com/${cloudName}/image/upload/${id}.jpg`;
+const cloudName = process.env.CLOUDINARY_CLOUD_NAME!;
+const cdn = (id: string) => `https://res.cloudinary.com/${cloudName}/image/upload/${id}.jpg`;
 
 const SUBJECTS = [
   'AI 추천 알고리즘',
@@ -61,25 +64,15 @@ const SUBJECTS = [
 
 const ENDINGS = ['찬성 vs. 반대?', '도입이 필요할까?', '효과 있을까?', '형평성 논란?', '장단점은?'];
 
-const makeTitle = () => {
-  const sub = SUBJECTS[Math.floor(Math.random() * SUBJECTS.length)];
-  const end = ENDINGS[Math.floor(Math.random() * ENDINGS.length)];
-  return `${sub}, ${end}`;
-};
-
-const makeContent = title =>
-  `${title}에 대한 여러분의 생각은 무엇인가요? 근거를 포함해 자유롭게 토론해 주세요.`;
-
-const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const makeTitle = () => `${randPick(SUBJECTS)}, ${randPick(ENDINGS)}`;
+const makeContent = t => `${t}에 대한 여러분의 생각은…`;
+const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+const randPick = <T>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
 
 async function main() {
   await Promise.all(
     categories.map(({ name, slug }) =>
-      prisma.category.upsert({
-        where: { slug },
-        update: {},
-        create: { name, slug },
-      }),
+      prisma.category.upsert({ where: { slug }, update: {}, create: { name, slug } }),
     ),
   );
   console.log(`✅  Seeded ${categories.length} categories`);
@@ -93,37 +86,67 @@ async function main() {
     const smallId = smallIds[i % smallIds.length];
 
     const isClosed = i % 4 === 0;
+    const isUpcoming = !isClosed && i % 5 === 0;
     const deadline = new Date(now);
-    let status = Status.ongoing;
-    let closedAt = null;
+    const startAt = isUpcoming ? new Date(now.getTime() + rand(1, 5) * 86_400_000) : new Date(now);
+
+    let status: Status = Status.ongoing;
+    let closedAt: Date | null = null;
 
     if (isClosed) {
       deadline.setDate(now.getDate() - rand(1, 7));
       status = Status.closed;
       closedAt = new Date(deadline);
+    } else if (isUpcoming) {
+      deadline.setDate(startAt.getDate() + rand(3, 10));
+      status = Status.upcoming;
     } else {
       deadline.setDate(now.getDate() + rand(1, 14));
     }
 
-    const title = makeTitle();
-    const content = makeContent(title);
+    const pro = rand(0, 800);
+    const con = rand(0, 800);
+    const views = rand(100, 5_000);
+    const cmts = rand(0, 200);
+    const parts = rand(0, 300);
 
-    await prisma.debate.create({
+    const debate = await prisma.debate.create({
       data: {
-        title,
-        content,
+        title: makeTitle(),
+        content: makeContent(makeTitle()),
+        startAt: status === Status.closed ? null : startAt,
         deadline,
         status,
         closedAt,
+        proCount: pro,
+        conCount: con,
+        commentCount: cmts,
+        participantCount: parts,
+        viewCount: views,
+        hotScore: 0,
         thumbUrl: cdn(thumbId),
         smallUrl: cdn(smallId),
-        proCount: rand(0, 1000),
-        conCount: rand(0, 1000),
-        category: {
-          connect: { slug: cat.slug },
-        },
+        category: { connect: { slug: cat.slug } },
       },
     });
+
+    if (status !== Status.closed) {
+      const exp = Math.floor(deadline.getTime() / 1000);
+
+      await redis
+        .multi()
+        .set(keyViews(debate.id), views, 'EXAT', exp)
+        .set(keyComments(debate.id), cmts, 'EXAT', exp)
+        .hset(keyVotes(debate.id), { pro, con })
+        .sadd(
+          keyParticipants(debate.id),
+          ...Array(parts)
+            .fill('')
+            .map(() => `ip-${rand(1, 1e5)}`),
+        )
+        .zadd('debate:hot', 0, debate.id)
+        .exec();
+    }
   }
 
   console.log(`✅  Seeded ${TOTAL_DEBATES} debates`);
@@ -137,7 +160,11 @@ async function run() {
     process.exit(1);
   } finally {
     await prisma.$disconnect();
+    await redis.quit();
   }
 }
 
-run();
+run().catch(err => {
+  console.error('❌  Seeding failed', err);
+  process.exit(1);
+});
