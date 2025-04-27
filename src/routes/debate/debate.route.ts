@@ -1,16 +1,34 @@
 import fp from 'fastify-plugin';
 import { z } from 'zod';
 
-import { addComment, createDebate, getDebate } from './debate.controller.js';
-import { CommentBody, CreateDebateBody, DebateDto, DebateIdParam } from './debate.schema.js';
+import { addComment, createDebate, getDebate, getDebateList } from './debate.controller.js';
+import {
+  CommentBody,
+  CreateDebateBody,
+  Debate,
+  DebateIdParam,
+  DebateList,
+  DebateListQuery,
+} from './debate.schema.js';
 
 export default fp(app => {
+  app.get(
+    '/sidebar',
+    {
+      schema: {
+        querystring: DebateListQuery,
+        response: { 200: DebateList },
+      },
+    },
+    getDebateList,
+  );
+
   app.get(
     '/:id',
     {
       schema: {
         params: DebateIdParam,
-        response: { 200: DebateDto },
+        response: { 200: Debate },
       },
     },
     getDebate,
@@ -21,7 +39,7 @@ export default fp(app => {
     {
       schema: {
         body: CreateDebateBody,
-        response: { 201: DebateDto },
+        response: { 201: Debate },
       },
     },
     async (req, reply) => {
