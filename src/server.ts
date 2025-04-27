@@ -1,22 +1,17 @@
 import '@fastify/rate-limit';
 
-import cookie from '@fastify/cookie';
-import cors from '@fastify/cors';
-import csrf from '@fastify/csrf-protection';
-import helmet from '@fastify/helmet';
-import rateLimit from '@fastify/rate-limit';
-import fastifyRedis from '@fastify/redis';
 import sensible from '@fastify/sensible';
-import swagger from '@fastify/swagger';
-import swaggerUI from '@fastify/swagger-ui';
 import Fastify, { FastifyError } from 'fastify';
-import {
-  jsonSchemaTransform,
-  serializerCompiler,
-  validatorCompiler,
-} from 'fastify-type-provider-zod';
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 
-import { config } from './libs/env.js';
+import redisPlugin from '@/plugins/redis';
+import schedulePlugin from '@/plugins/schedule';
+import securityPlugin from '@/plugins/security';
+import swaggerPlugin from '@/plugins/swagger';
+
+import hotScoreJob from './jobs/hot-score.job.js';
+import statusSwitchJob from './jobs/status-switch.job.js';
+import syncViewsJob from './jobs/sync-views.job.js';
 import { pinoLoggerOption } from './libs/logger.js';
 import { genRequestId } from './libs/request-id.js';
 import { registerCategoryRoutes } from './routes/category.route.js';
@@ -39,51 +34,19 @@ export async function buildServer() {
     .setSerializerCompiler(serializerCompiler);
 
   /** 보안 플러그인 */
-  await app.register(helmet, {
-    global: true,
-    contentSecurityPolicy: false,
-  });
-  await app.register(rateLimit, {
-    global: true,
-    max: config.RATE_LIMIT_MAX,
-    timeWindow: config.RATE_LIMIT_WINDOW,
-    // ban: 15, TODO: ban을 넣어야할지 문의 필요
-    allowList: config.RL_ALLOWLIST.split(',').filter(Boolean),
-  });
-  await app.register(cors, {
-    origin: config.CORS_ORIGIN.split(','),
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  });
-
-  /** 인증 관련 */
-  await app.register(cookie, { secret: config.COOKIE_SECRET });
-  if (config.NODE_ENV !== 'development') {
-    await app.register(csrf, { cookieOpts: { sameSite: 'lax', path: '/' } });
-  }
+  await app.register(securityPlugin);
 
   /** Redis */
-  await app.register(fastifyRedis, {
-    url: config.REDIS_URL,
-    tls: { rejectUnauthorized: false },
-    maxRetriesPerRequest: null,
-    enableAutoPipelining: true,
-  });
+  await app.register(redisPlugin);
 
   /** Swagger */
-  if (config.NODE_ENV !== 'production') {
-    await app.register(swagger, {
-      openapi: {
-        info: { title: 'Up&Down API', version: '1.0.0' },
-        tags: [{ name: 'Debate', description: '찬반 토론' }],
-      },
-      transform: jsonSchemaTransform,
-    });
-    await app.register(swaggerUI, {
-      routePrefix: '/docs',
-      uiConfig: { docExpansion: 'list' },
-    });
-  }
+  await app.register(swaggerPlugin);
+
+  /** Schedule */
+  await app.register(schedulePlugin);
+  await app.register(syncViewsJob);
+  await app.register(statusSwitchJob);
+  await app.register(hotScoreJob);
 
   /** Error Helper */
   await app.register(sensible);
