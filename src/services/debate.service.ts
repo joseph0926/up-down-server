@@ -78,7 +78,8 @@ export class DebateService {
     const map = new Map(full.map(r => [r.id, r]));
 
     const items = ids
-      .map(id => map.get(id)!)
+      .map(id => map.get(id))
+      .filter(row => !!row)
       .map(row => ({
         id: row.id,
         title: row.title,

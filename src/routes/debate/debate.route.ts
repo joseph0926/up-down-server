@@ -13,7 +13,7 @@ import {
 
 export default fp(app => {
   app.get(
-    '/',
+    '/debates',
     {
       schema: {
         querystring: DebateListQuery,
@@ -34,7 +34,7 @@ export default fp(app => {
   );
 
   app.get(
-    '/:id',
+    '/debates/:id',
     {
       schema: {
         params: DebateIdParam,
@@ -54,7 +54,7 @@ export default fp(app => {
   );
 
   app.post(
-    '/',
+    '/debates',
     {
       schema: {
         body: CreateDebateBody,
@@ -74,7 +74,7 @@ export default fp(app => {
   );
 
   app.post(
-    '/comment',
+    '/debates/comment',
     {
       schema: {
         body: CommentBody,

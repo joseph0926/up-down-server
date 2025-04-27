@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+const ISO = z.string().datetime();
+const DateString = z.preprocess(v => (v instanceof Date ? v.toISOString() : v), ISO);
+
 export const DebateListQuery = z.object({
   sort: z.enum(['hot', 'imminent', 'latest']).default('hot'),
   limit: z.coerce.number().int().min(1).max(50).default(10),
@@ -10,7 +13,7 @@ export const DebateListItem = z.object({
   id: z.string().cuid(),
   title: z.string(),
   status: z.enum(['upcoming', 'ongoing', 'closed']),
-  deadline: z.string().datetime(),
+  deadline: DateString,
   dDay: z.number().int(),
   proRatio: z.number(),
   conRatio: z.number(),
@@ -34,8 +37,8 @@ export const DebateIdParam = z.object({
 export const CreateDebateBody = z.object({
   title: z.string().min(3).max(100),
   content: z.string().optional(),
-  startAt: z.string().datetime().optional(),
-  deadline: z.string().datetime(),
+  startAt: DateString.optional(),
+  deadline: DateString,
   categoryId: z.number().int().optional(),
 });
 
@@ -51,8 +54,8 @@ export const Debate = z.object({
   title: z.string(),
   content: z.string().nullable(),
   status: z.enum(['upcoming', 'ongoing', 'closed']),
-  startAt: z.string().datetime().nullable(),
-  deadline: z.string().datetime(),
+  startAt: DateString.optional(),
+  deadline: DateString,
   proCount: z.number(),
   conCount: z.number(),
   viewCount: z.number(),

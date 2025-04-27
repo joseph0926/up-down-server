@@ -66,7 +66,7 @@ export async function buildServer() {
   /** Router */
   app.get('/health', () => ({ status: 'ok' }));
   app.get('/health/redis', async () => ({ pong: await app.redis.ping() }));
-  app.register(debateRoute, { prefix: '/debates' });
+  app.register(debateRoute);
 
   /** Error Handler */
   app.setErrorHandler((err, req, reply) => {
