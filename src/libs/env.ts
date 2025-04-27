@@ -18,8 +18,11 @@ export const config = cleanEnv(process.env, {
   LOKI_PASSWORD: str(),
   RATE_LIMIT_WINDOW: num({ default: 60_000 }),
   RATE_LIMIT_MAX: num({ default: 100 }),
+  RL_ALLOWLIST: str(),
   DATABASE_URL: str(),
   REDIS_URL: str(),
+  CORS_ORIGIN: str(),
+  COOKIE_SECRET: str(),
 } as const);
 
 export type Env = Readonly<typeof config>;

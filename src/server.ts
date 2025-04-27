@@ -6,6 +6,7 @@ import csrf from '@fastify/csrf-protection';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import fastifyRedis from '@fastify/redis';
+import sensible from '@fastify/sensible';
 import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
 import Fastify, { FastifyError } from 'fastify';
@@ -26,6 +27,9 @@ function isValidationError(err: FastifyError): err is FastifyError & { validatio
 }
 
 export async function buildServer() {
+  /**
+   * 앱 초기화 및 로깅 적용
+   */
   const app = Fastify({
     logger: pinoLoggerOption,
     genReqId: genRequestId,
@@ -34,48 +38,62 @@ export async function buildServer() {
     .setValidatorCompiler(validatorCompiler)
     .setSerializerCompiler(serializerCompiler);
 
+  /** 보안 플러그인 */
   await app.register(helmet, {
     global: true,
     contentSecurityPolicy: false,
   });
-
   await app.register(rateLimit, {
     global: true,
-    max: Number(config.RATE_LIMIT_MAX),
-    timeWindow: `${config.RATE_LIMIT_WINDOW}`,
-    ban: 3,
-    allowList: ['127.0.0.1'],
+    max: config.RATE_LIMIT_MAX,
+    timeWindow: config.RATE_LIMIT_WINDOW,
+    // ban: 15, TODO: ban을 넣어야할지 문의 필요
+    allowList: config.RL_ALLOWLIST.split(',').filter(Boolean),
   });
-
   await app.register(cors, {
-    origin: 'http://localhost:3000',
+    origin: config.CORS_ORIGIN.split(','),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
   });
 
-  if (config.NODE_ENV !== 'test') {
-    await app.register(cookie, { secret: 'csrf' });
+  /** 인증 관련 */
+  await app.register(cookie, { secret: config.COOKIE_SECRET });
+  if (config.NODE_ENV !== 'development') {
     await app.register(csrf, { cookieOpts: { sameSite: 'lax', path: '/' } });
   }
 
-  await app.register(swagger, {
-    openapi: {
-      info: { title: 'Up&Down API', version: '1.0.0' },
-      tags: [{ name: 'Debate', description: '찬반 토론' }],
-    },
-    transform: jsonSchemaTransform,
-  });
-  await app.register(swaggerUI, {
-    routePrefix: '/docs',
-    uiConfig: { docExpansion: 'list' },
-  });
-
+  /** Redis */
   await app.register(fastifyRedis, {
     url: config.REDIS_URL,
+    tls: { rejectUnauthorized: false },
     maxRetriesPerRequest: null,
     enableAutoPipelining: true,
   });
 
+  /** Swagger */
+  if (config.NODE_ENV !== 'production') {
+    await app.register(swagger, {
+      openapi: {
+        info: { title: 'Up&Down API', version: '1.0.0' },
+        tags: [{ name: 'Debate', description: '찬반 토론' }],
+      },
+      transform: jsonSchemaTransform,
+    });
+    await app.register(swaggerUI, {
+      routePrefix: '/docs',
+      uiConfig: { docExpansion: 'list' },
+    });
+  }
+
+  /** Error Helper */
+  await app.register(sensible);
+
+  /** Logging */
+  app.addHook('onRequest', (req, _res, done) => {
+    req.startTime = Date.now();
+    req.log = req.log.child({ traceId: req.id });
+    done();
+  });
   app.addHook('onResponse', (req, reply) => {
     req.log.info(
       { status: reply.statusCode, duration: Date.now() - req.startTime },
@@ -83,14 +101,13 @@ export async function buildServer() {
     );
   });
 
-  app.get('/health', { config: { rateLimit: false, cors: false } }, () => ({ status: 'ok' }));
-  app.get('/redis/health', async req => {
-    const pong = await req.server.redis.ping();
-    return { pong };
-  });
+  /** Router */
+  app.get('/health', () => ({ status: 'ok' }));
+  app.get('/health/redis', async () => ({ pong: await app.redis.ping() }));
   app.register(registerDebateRoutes, { prefix: '/debates' });
   app.register(registerCategoryRoutes, { prefix: '/categories' });
 
+  /** Error Handler */
   app.setErrorHandler((err, req, reply) => {
     const level: 'warn' | 'error' = isValidationError(err) ? 'warn' : 'error';
     req.log[level]({ err }, 'Unhandled error');
@@ -98,10 +115,4 @@ export async function buildServer() {
   });
 
   return app;
-}
-
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const app = await buildServer();
-  await app.listen({ port: Number(process.env.PORT ?? 4000), host: '0.0.0.0' });
-  app.log.info(`서버 실행: http://localhost:${process.env.PORT ?? 4000}`);
 }
