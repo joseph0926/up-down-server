@@ -14,8 +14,7 @@ import statusSwitchJob from './jobs/status-switch.job.js';
 import syncViewsJob from './jobs/sync-views.job.js';
 import { pinoLoggerOption } from './libs/logger.js';
 import { genRequestId } from './libs/request-id.js';
-import { registerCategoryRoutes } from './routes/category.route.js';
-import { registerDebateRoutes } from './routes/debate.route.js';
+import debateRoute from './routes/debate/debate.route.js';
 
 function isValidationError(err: FastifyError): err is FastifyError & { validation: unknown } {
   return 'validation' in err && err.validation !== undefined;
@@ -67,8 +66,7 @@ export async function buildServer() {
   /** Router */
   app.get('/health', () => ({ status: 'ok' }));
   app.get('/health/redis', async () => ({ pong: await app.redis.ping() }));
-  app.register(registerDebateRoutes, { prefix: '/debates' });
-  app.register(registerCategoryRoutes, { prefix: '/categories' });
+  app.register(debateRoute, { prefix: '/debates' });
 
   /** Error Handler */
   app.setErrorHandler((err, req, reply) => {

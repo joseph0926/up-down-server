@@ -73,4 +73,40 @@ export class DebateService {
 
     return score;
   }
+
+  static async create({
+    title,
+    content,
+    startAt,
+    deadline,
+    categoryId,
+  }: {
+    title: string;
+    content?: string;
+    startAt?: Date | string;
+    deadline: Date | string;
+    categoryId?: number;
+  }) {
+    const debate = await prisma.debate.create({
+      data: {
+        title,
+        content,
+        startAt: startAt ? new Date(startAt) : undefined,
+        deadline: new Date(deadline),
+        categoryId,
+        status: startAt && new Date(startAt) > new Date() ? 'upcoming' : 'ongoing',
+      },
+    });
+
+    const pipeline = redis
+      .multi()
+      .set(keyViews(debate.id), 0, 'EXAT', Math.floor(debate.deadline.getTime() / 1000))
+      .set(keyComments(debate.id), 0, 'EXAT', Math.floor(debate.deadline.getTime() / 1000))
+      .del(keyVotes(debate.id))
+      .del(keyParticipants(debate.id))
+      .zadd('debate:hot', 0, debate.id);
+
+    await pipeline.exec();
+    return debate;
+  }
 }
