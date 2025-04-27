@@ -1,7 +1,7 @@
 import '@fastify/rate-limit';
 
 import sensible from '@fastify/sensible';
-import Fastify, { FastifyError } from 'fastify';
+import Fastify from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 
 import redisPlugin from '@/plugins/redis';
@@ -14,11 +14,8 @@ import statusSwitchJob from './jobs/status-switch.job.js';
 import syncViewsJob from './jobs/sync-views.job.js';
 import { pinoLoggerOption } from './libs/logger.js';
 import { genRequestId } from './libs/request-id.js';
+import responsePlugin from './plugins/response.js';
 import debateRoute from './routes/debate/debate.route.js';
-
-function isValidationError(err: FastifyError): err is FastifyError & { validation: unknown } {
-  return 'validation' in err && err.validation !== undefined;
-}
 
 export async function buildServer() {
   /**
@@ -50,6 +47,9 @@ export async function buildServer() {
   /** Error Helper */
   await app.register(sensible);
 
+  /** Response */
+  await app.register(responsePlugin);
+
   /** Logging */
   app.addHook('onRequest', (req, _res, done) => {
     req.startTime = Date.now();
@@ -70,9 +70,23 @@ export async function buildServer() {
 
   /** Error Handler */
   app.setErrorHandler((err, req, reply) => {
-    const level: 'warn' | 'error' = isValidationError(err) ? 'warn' : 'error';
-    req.log[level]({ err }, 'Unhandled error');
-    reply.status(err.statusCode ?? 500).send({ message: 'Internal Server Error' });
+    const msg =
+      err.name === 'ZodError'
+        ? (err as unknown as { errors: { message: string }[] }).errors?.[0]?.message ||
+          'Validation error'
+        : err.code === 'P2025'
+          ? 'Record not found'
+          : err.message || 'Internal error';
+
+    const status = err.statusCode ?? (err.name === 'ZodError' ? 400 : 500);
+
+    req.log.error({ err }, 'Request failed');
+
+    reply.status(status).send({
+      data: null,
+      success: false,
+      message: msg,
+    });
   });
 
   return app;
