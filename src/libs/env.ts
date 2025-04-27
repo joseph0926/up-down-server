@@ -19,6 +19,7 @@ export const config = cleanEnv(process.env, {
   RATE_LIMIT_WINDOW: num({ default: 60_000 }),
   RATE_LIMIT_MAX: num({ default: 100 }),
   DATABASE_URL: str(),
+  REDIS_URL: str(),
 } as const);
 
 export type Env = Readonly<typeof config>;

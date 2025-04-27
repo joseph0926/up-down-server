@@ -5,6 +5,7 @@ import cors from '@fastify/cors';
 import csrf from '@fastify/csrf-protection';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import fastifyRedis from '@fastify/redis';
 import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
 import Fastify, { FastifyError } from 'fastify';
@@ -69,6 +70,12 @@ export async function buildServer() {
     uiConfig: { docExpansion: 'list' },
   });
 
+  await app.register(fastifyRedis, {
+    url: config.REDIS_URL,
+    maxRetriesPerRequest: null,
+    enableAutoPipelining: true,
+  });
+
   app.addHook('onResponse', (req, reply) => {
     req.log.info(
       { status: reply.statusCode, duration: Date.now() - req.startTime },
@@ -77,6 +84,10 @@ export async function buildServer() {
   });
 
   app.get('/health', { config: { rateLimit: false, cors: false } }, () => ({ status: 'ok' }));
+  app.get('/redis/health', async req => {
+    const pong = await req.server.redis.ping();
+    return { pong };
+  });
   app.register(registerDebateRoutes, { prefix: '/debates' });
   app.register(registerCategoryRoutes, { prefix: '/categories' });
 
