@@ -1,16 +1,11 @@
 import fastifyRedis from '@fastify/redis';
 import fp from 'fastify-plugin';
 
-import { config } from '@/libs/env';
+import { redis } from '@/libs/redis/index';
 
-/**
- * Redis 플러그인
- */
 export default fp(async app => {
-  await app.register(fastifyRedis, {
-    url: config.REDIS_URL,
-    tls: { rejectUnauthorized: false },
-    maxRetriesPerRequest: null,
-    enableAutoPipelining: true,
-  });
+  await app.register(fastifyRedis, { client: redis, closeClient: false });
+
+  app.redis.on('ready', () => app.log.info('Redis connected'));
+  app.redis.on('error', err => app.log.error({ err }, 'Redis error'));
 });
