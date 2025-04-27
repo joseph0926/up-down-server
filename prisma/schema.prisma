@@ -13,6 +13,7 @@ enum Side {
 }
 
 enum Status {
+  upcoming
   ongoing
   closed
 }
@@ -28,27 +29,34 @@ model Category {
 }
 
 model Debate {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
+  id String @id @default(cuid())
 
   title    String
   content  String?
+  status   Status    @default(upcoming)
+  startAt  DateTime?
   deadline DateTime
-  status   Status
   closedAt DateTime?
 
-  categoryId Int?
-  category   Category? @relation(fields: [categoryId], references: [id])
-
-  proCount Int @default(0)
-  conCount Int @default(0)
+  proCount         Int   @default(0)
+  conCount         Int   @default(0)
+  commentCount     Int   @default(0)
+  participantCount Int   @default(0)
+  viewCount        Int   @default(0)
+  hotScore         Float @default(0)
 
   thumbUrl String? @map("thumb_url")
   smallUrl String? @map("small_url")
 
+  categoryId Int?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
   comments Comment[]
 
-  @@index([deadline])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, deadline])
 }
 
 model Comment {
