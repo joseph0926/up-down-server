@@ -7,17 +7,17 @@ import { calcHotScore } from '@/libs/utils/hot-score';
 
 type SortField = 'deadline' | 'createdAt';
 
-const selectDeadline = Prisma.validator<Prisma.DebateSelect>()({
+export const selectDeadline = Prisma.validator<Prisma.DebateSelect>()({
   id: true,
   deadline: true,
 });
-type RowDeadline = Prisma.DebateGetPayload<{ select: typeof selectDeadline }>;
+export type RowDeadline = Prisma.DebateGetPayload<{ select: typeof selectDeadline }>;
 
-const selectCreated = Prisma.validator<Prisma.DebateSelect>()({
+export const selectCreated = Prisma.validator<Prisma.DebateSelect>()({
   id: true,
   createdAt: true,
 });
-type RowCreated = Prisma.DebateGetPayload<{ select: typeof selectCreated }>;
+export type RowCreated = Prisma.DebateGetPayload<{ select: typeof selectCreated }>;
 
 export class DebateService {
   static async getDebateList(sort: 'hot' | 'imminent' | 'latest', limit = 10, cursor?: string) {
@@ -49,15 +49,31 @@ export class DebateService {
       const field: SortField = sort === 'imminent' ? 'deadline' : 'createdAt';
       const orderBy = sort === 'imminent' ? 'asc' : 'desc';
 
-      const [valCursor] = cursor?.split(':') ?? [];
-      const dateCursor = valCursor ? new Date(valCursor) : undefined;
-
       const selectObj = field === 'deadline' ? selectDeadline : selectCreated;
+
+      const [tsCursor, idCursor] = cursor?.split(':') ?? [];
+      const epochCursor = tsCursor ? Number(tsCursor) : undefined;
+
+      const whereCursor = epochCursor
+        ? {
+            OR: [
+              {
+                [field]:
+                  orderBy === 'asc' ? { gt: new Date(epochCursor) } : { lt: new Date(epochCursor) },
+              },
+              {
+                AND: [
+                  { [field]: new Date(epochCursor) },
+                  { id: orderBy === 'asc' ? { gt: idCursor } : { lt: idCursor } },
+                ],
+              },
+            ],
+          }
+        : undefined;
+
       const rows = await prisma.debate.findMany({
-        where: dateCursor
-          ? { [field]: sort === 'imminent' ? { gt: dateCursor } : { lt: dateCursor } }
-          : undefined,
-        orderBy: { [field]: orderBy } as Record<SortField, 'asc' | 'desc'>,
+        where: whereCursor,
+        orderBy: [{ [field]: orderBy }, { id: orderBy }] as const,
         take: limit,
         select: selectObj,
       });
@@ -68,7 +84,7 @@ export class DebateService {
         const last = rows[rows.length - 1] as RowDeadline | RowCreated;
         const lastDate =
           field === 'deadline' ? (last as RowDeadline).deadline : (last as RowCreated).createdAt;
-        nextCursor = `${lastDate.toISOString()}:${last.id}`;
+        nextCursor = `${lastDate.getTime()}:${last.id}`;
       }
     }
 
