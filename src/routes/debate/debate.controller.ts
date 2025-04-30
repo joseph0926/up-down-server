@@ -5,10 +5,10 @@ import { DebateService } from '@/services/debate.service';
 import {
   CommentBody,
   CreateDebateBody,
-  Debate,
   DebateIdParam,
   DebateList,
   DebateListQuery,
+  DebateSchema,
 } from './debate.schema.js';
 
 export const getDebateList = async (req: FastifyRequest) => {
@@ -20,13 +20,13 @@ export const getDebateList = async (req: FastifyRequest) => {
 export const getDebate = async (req: FastifyRequest) => {
   const { id } = DebateIdParam.parse(req.params);
   const debate = await DebateService.getById(id);
-  return Debate.parse(debate);
+  return DebateSchema.parse(debate);
 };
 
 export const createDebate = async (req: FastifyRequest) => {
   const dto = CreateDebateBody.parse(req.body);
   const debate = await DebateService.create(dto);
-  return Debate.parse(debate);
+  return DebateSchema.parse(debate);
 };
 
 export const addComment = async (req: FastifyRequest) => {

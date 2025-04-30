@@ -50,17 +50,32 @@ export const CommentBody = z.object({
   content: z.string().min(1).max(300),
 });
 
-export const Debate = z.object({
+const CategorySchema = z.object({
+  createdAt: z.date(),
+  id: z.number(),
+  name: z.string(),
+  slug: z.string(),
+});
+
+export const DebateSchema = z.object({
   id: z.string().cuid(),
   title: z.string(),
   content: z.string().nullable(),
   status: z.enum(['upcoming', 'ongoing', 'closed']),
   startAt: DateString.optional(),
   deadline: DateString,
+  dDay: z.number(),
+  proRatio: z.number(),
+  conRatio: z.number(),
   proCount: z.number(),
   conCount: z.number(),
+  commentCount: z.number(),
   viewCount: z.number(),
   hotScore: z.number(),
+  thumbUrl: z.string().nullable(),
+  smallUrl: z.string().nullable().optional(),
+  createdAt: z.date(),
+  category: CategorySchema,
 });
 
-export type DebateDto = z.infer<typeof Debate>;
+export type DebateDto = z.infer<typeof DebateSchema>;

@@ -5,10 +5,10 @@ import { addComment, createDebate, getDebate, getDebateList } from './debate.con
 import {
   CommentBody,
   CreateDebateBody,
-  Debate,
   DebateIdParam,
   DebateList,
   DebateListQuery,
+  DebateSchema,
 } from './debate.schema.js';
 
 export default fp(app => {
@@ -40,7 +40,7 @@ export default fp(app => {
         params: DebateIdParam,
         response: {
           200: z.object({
-            data: Debate,
+            data: DebateSchema,
             success: z.literal(true),
             message: z.string().optional(),
           }),
@@ -60,7 +60,7 @@ export default fp(app => {
         body: CreateDebateBody,
         response: {
           201: z.object({
-            data: Debate,
+            data: DebateSchema,
             success: z.literal(true),
             message: z.string().optional(),
           }),

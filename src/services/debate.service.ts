@@ -115,7 +115,10 @@ export class DebateService {
   }
 
   static async getById(id: string) {
-    const debate = await prisma.debate.findUniqueOrThrow({ where: { id } });
+    const debate = await prisma.debate.findUniqueOrThrow({
+      where: { id },
+      include: { category: true },
+    });
 
     await redis
       .multi()
@@ -123,7 +126,18 @@ export class DebateService {
       .expireat(keyViews(id), Math.floor(debate.deadline.getTime() / 1000))
       .exec();
 
-    return debate;
+    return {
+      ...debate,
+      dDay: Math.ceil((debate.deadline.getTime() - Date.now()) / 86_400_000),
+      proRatio:
+        debate.proCount + debate.conCount
+          ? debate.proCount / (debate.proCount + debate.conCount)
+          : 0,
+      conRatio:
+        debate.proCount + debate.conCount
+          ? debate.conCount / (debate.proCount + debate.conCount)
+          : 0,
+    };
   }
 
   static async listHot(limit = 10) {
