@@ -99,6 +99,7 @@ export class DebateService {
       .map(row => ({
         id: row.id,
         title: row.title,
+        content: row.content,
         status: row.status,
         deadline: row.deadline.toISOString(),
         dDay: Math.ceil((row.deadline.getTime() - Date.now()) / 86_400_000),

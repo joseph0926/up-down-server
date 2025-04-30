@@ -12,6 +12,7 @@ export const DebateListQuery = z.object({
 export const DebateListItem = z.object({
   id: z.string().cuid(),
   title: z.string(),
+  content: z.string(),
   status: z.enum(['upcoming', 'ongoing', 'closed']),
   deadline: DateString,
   dDay: z.number().int(),
