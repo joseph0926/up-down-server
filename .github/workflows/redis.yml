@@ -37,7 +37,7 @@ jobs:
       - run: node -v
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install -g typescript ts-node
 
       - name: Generate Prisma Client
         run: pnpm prisma generate
