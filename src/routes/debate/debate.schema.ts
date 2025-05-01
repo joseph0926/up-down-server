@@ -8,7 +8,7 @@ export const CategorySchema = z.object({
   id: z.number().int(),
   name: z.string(),
   slug: z.string(),
-  createdAt: ISO,
+  createdAt: z.date(),
 });
 
 export const DebateListItem = z.object({
@@ -51,9 +51,14 @@ export const CreateDebateBody = z.object({
   categoryId: z.number().int().optional(),
 });
 
-export const ResDebateList = apiResponse(cursorList(DebateListItem));
-export const ResDebateDetail = apiResponse(DebateSchema);
-export const ResCreateDebate = apiResponse(DebateSchema);
+export const DebateList = cursorList(DebateListItem);
+export const ResDebateList = apiResponse(DebateList);
+
+export const DebateDetail = DebateSchema;
+export const ResDebateDetail = apiResponse(DebateDetail);
+
+export const CreateDebate = DebateSchema;
+export const ResCreateDebate = apiResponse(CreateDebate);
 
 export type DebateDto = z.infer<typeof DebateSchema>;
 export type DebateListItemDto = z.infer<typeof DebateListItem>;

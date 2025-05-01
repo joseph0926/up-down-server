@@ -6,19 +6,90 @@ import { redis } from '@/libs/redis/index';
 import { keyComments, keyParticipants, keyViews, keyVotes } from '@/libs/redis/keys';
 import { calcHotScore } from '@/libs/utils/hot-score';
 
-type SortField = 'deadline' | 'createdAt';
+function toDetail(row: Prisma.DebateGetPayload<{ include: { category: true } }>) {
+  return {
+    id: row.id,
+    title: row.title,
+    content: row.content,
+    status: row.status,
+    deadline: ISO(row.deadline)!,
+    startAt: ISO(row.startAt),
+    createdAt: ISO(row.createdAt)!,
+    dDay: Math.ceil((row.deadline.getTime() - Date.now()) / 86_400_000),
+    proRatio: ratio(row.proCount, row.conCount),
+    conRatio: ratio(row.conCount, row.proCount),
+    proCount: row.proCount,
+    conCount: row.conCount,
+    commentCount: row.commentCount,
+    viewCount: row.viewCount,
+    hotScore: row.hotScore,
+    thumbUrl: row.thumbUrl,
+    smallUrl: row.smallUrl,
+    category: row.category,
+  };
+}
 
 export const selectDeadline = Prisma.validator<Prisma.DebateSelect>()({
   id: true,
   deadline: true,
 });
-export type RowDeadline = Prisma.DebateGetPayload<{ select: typeof selectDeadline }>;
-
 export const selectCreated = Prisma.validator<Prisma.DebateSelect>()({
   id: true,
   createdAt: true,
 });
-export type RowCreated = Prisma.DebateGetPayload<{ select: typeof selectCreated }>;
+
+type RowDeadline = Prisma.DebateGetPayload<{ select: typeof selectDeadline }>;
+type RowCreated = Prisma.DebateGetPayload<{ select: typeof selectCreated }>;
+type DebateFull = Prisma.DebateGetPayload<object>;
+
+type SortField = 'deadline' | 'createdAt';
+
+const ISO = (d: Date | null) => (d ? d.toISOString() : null);
+const ratio = (a: number, b: number) => (a + b ? a / (a + b) : 0);
+const dDay = (d: Date) => Math.ceil((d.getTime() - Date.now()) / 86_400_000);
+
+function toListItem(row: DebateFull) {
+  return {
+    id: row.id,
+    title: row.title,
+    content: row.content,
+    status: row.status,
+    deadline: ISO(row.deadline),
+    dDay: dDay(row.deadline),
+    proRatio: ratio(row.proCount, row.conCount),
+    conRatio: ratio(row.conCount, row.proCount),
+    commentCount: row.commentCount,
+    viewCount: row.viewCount,
+    hotScore: row.hotScore,
+    thumbUrl: row.thumbUrl,
+  };
+}
+
+function fetchRowsDeadline(
+  order: 'asc' | 'desc',
+  where: Prisma.DebateWhereInput | undefined,
+  take: number,
+): Promise<RowDeadline[]> {
+  return prisma.debate.findMany({
+    where,
+    orderBy: [{ deadline: order }, { id: order }],
+    take,
+    select: selectDeadline,
+  });
+}
+
+function fetchRowsCreated(
+  order: 'asc' | 'desc',
+  where: Prisma.DebateWhereInput | undefined,
+  take: number,
+): Promise<RowCreated[]> {
+  return prisma.debate.findMany({
+    where,
+    orderBy: [{ createdAt: order }, { id: order }],
+    take,
+    select: selectCreated,
+  });
+}
 
 export class DebateService {
   static async getDebateList(sort: 'hot' | 'imminent' | 'latest', limit = 10, cursor?: string) {
@@ -27,8 +98,8 @@ export class DebateService {
       let nextCursor: string | null = null;
 
       if (sort === 'hot') {
-        const [scoreCursor] = cursor?.split(':') ?? [];
-        const maxScore = scoreCursor ?? '+inf';
+        const [scoreCur] = cursor?.split(':') ?? [];
+        const maxScore = scoreCur ?? '+inf';
         const offset = cursor ? 1 : 0;
 
         const raw = await redis.zrevrangebyscore(
@@ -44,45 +115,39 @@ export class DebateService {
         const scores = raw.filter((_, i) => i % 2 === 1);
         if (ids.length === limit) nextCursor = `${scores.at(-1)}:${ids.at(-1)}`;
       } else {
-        const field: SortField = sort === 'imminent' ? 'deadline' : 'createdAt';
-        const orderBy = sort === 'imminent' ? 'asc' : 'desc';
-        const selectObj = field === 'deadline' ? selectDeadline : selectCreated;
+        const [tsCur, idCur] = cursor?.split(':') ?? [];
+        const epoch = tsCur ? Number(tsCur) : undefined;
 
-        const [tsCursor, idCursor] = cursor?.split(':') ?? [];
-        const epochCursor = tsCursor ? Number(tsCursor) : undefined;
+        const makeWhere = (
+          field: SortField,
+          order: 'asc' | 'desc',
+        ): Prisma.DebateWhereInput | undefined =>
+          epoch === undefined
+            ? undefined
+            : {
+                OR: [
+                  { [field]: order === 'asc' ? { gt: new Date(epoch) } : { lt: new Date(epoch) } },
+                  {
+                    AND: [
+                      { [field]: new Date(epoch) },
+                      { id: order === 'asc' ? { gt: idCur } : { lt: idCur } },
+                    ],
+                  },
+                ],
+              };
 
-        const whereCursor = epochCursor
-          ? {
-              OR: [
-                {
-                  [field]:
-                    orderBy === 'asc'
-                      ? { gt: new Date(epochCursor) }
-                      : { lt: new Date(epochCursor) },
-                },
-                {
-                  AND: [
-                    { [field]: new Date(epochCursor) },
-                    { id: orderBy === 'asc' ? { gt: idCursor } : { lt: idCursor } },
-                  ],
-                },
-              ],
-            }
-          : undefined;
-
-        const rows = await prisma.debate.findMany({
-          where: whereCursor,
-          orderBy: [{ [field]: orderBy }, { id: orderBy }] as const,
-          take: limit,
-          select: selectObj,
-        });
-
-        ids = rows.map(r => r.id);
-        if (rows.length === limit) {
-          const last = rows.at(-1) as RowDeadline | RowCreated;
-          const lastDate =
-            field === 'deadline' ? (last as RowDeadline).deadline : (last as RowCreated).createdAt;
-          nextCursor = `${lastDate.getTime()}:${last.id}`;
+        if (sort === 'imminent') {
+          const rows = await fetchRowsDeadline('asc', makeWhere('deadline', 'asc'), limit);
+          ids = rows.map(r => r.id);
+          if (rows.length === limit) {
+            nextCursor = `${rows.at(-1)!.deadline.getTime()}:${rows.at(-1)!.id}`;
+          }
+        } else {
+          const rows = await fetchRowsCreated('desc', makeWhere('createdAt', 'desc'), limit);
+          ids = rows.map(r => r.id);
+          if (rows.length === limit) {
+            nextCursor = `${rows.at(-1)!.createdAt.getTime()}:${rows.at(-1)!.id}`;
+          }
         }
       }
 
@@ -90,27 +155,10 @@ export class DebateService {
 
       const rows = await prisma.debate.findMany({ where: { id: { in: ids } } });
       const map = new Map(rows.map(r => [r.id, r]));
-
-      const items = ids
-        .map(id => map.get(id)!)
-        .map(row => ({
-          id: row.id,
-          title: row.title,
-          content: row.content,
-          status: row.status,
-          deadline: row.deadline.toISOString(),
-          dDay: Math.ceil((row.deadline.getTime() - Date.now()) / 86_400_000),
-          proRatio: ratio(row.proCount, row.conCount),
-          conRatio: ratio(row.conCount, row.proCount),
-          commentCount: row.commentCount,
-          viewCount: row.viewCount,
-          hotScore: row.hotScore,
-          thumbUrl: row.thumbUrl,
-        }));
+      const items = ids.map(id => toListItem(map.get(id)!));
 
       return { items, nextCursor };
-    } catch (e) {
-      console.error(e);
+    } catch {
       throw new AppError(ErrorCode.INTERNAL, '토론 목록 조회 실패', 500);
     }
   }
@@ -128,12 +176,7 @@ export class DebateService {
       .expireat(keyViews(id), Math.floor(debate.deadline.getTime() / 1000))
       .exec();
 
-    return {
-      ...debate,
-      dDay: Math.ceil((debate.deadline.getTime() - Date.now()) / 86_400_000),
-      proRatio: ratio(debate.proCount, debate.conCount),
-      conRatio: ratio(debate.conCount, debate.proCount),
-    };
+    return toDetail(debate);
   }
 
   static async listHot(limit = 10) {
@@ -185,6 +228,7 @@ export class DebateService {
           categoryId: dto.categoryId,
           status: dto.startAt && new Date(dto.startAt) > new Date() ? 'upcoming' : 'ongoing',
         },
+        include: { category: true },
       });
 
       await redis
@@ -196,7 +240,7 @@ export class DebateService {
         .zadd('debate:hot', 0, debate.id)
         .exec();
 
-      return debate;
+      return toDetail(debate);
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
         throw new AppError(ErrorCode.NOT_FOUND, '카테고리를 찾을 수 없습니다.', 404);
@@ -204,8 +248,4 @@ export class DebateService {
       throw new AppError(ErrorCode.INTERNAL, '토론 생성 실패', 500);
     }
   }
-}
-
-function ratio(a: number, b: number) {
-  return a + b ? a / (a + b) : 0;
 }

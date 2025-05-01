@@ -29,8 +29,11 @@ export const CommentSchema = z.object({
   createdAt: ISO,
 });
 
-export const ResCommentList = apiResponse(cursorList(CommentSchema));
-export const ResCommentOk = apiResponse(z.object({ ok: z.literal(true) }));
+export const CommentList = cursorList(CommentSchema);
+export const ResCommentList = apiResponse(CommentList);
+
+export const CommentOk = z.object({ ok: z.literal(true) });
+export const ResCommentOk = apiResponse(CommentOk);
 
 export type CommentDto = z.infer<typeof CommentSchema>;
 export type CommentListDto = z.infer<typeof ResCommentList>['data'];

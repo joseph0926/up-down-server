@@ -5,6 +5,11 @@ import { prisma } from '@/libs/prisma';
 import { redis } from '@/libs/redis/index';
 import { keyComments, keySideLikes, keyTopSide } from '@/libs/redis/keys';
 
+const toDto = (row: Prisma.CommentUncheckedCreateInput) => ({
+  ...row,
+  createdAt: typeof row.createdAt === 'string' ? row.createdAt : row.createdAt?.toISOString(),
+});
+
 export class CommentService {
   static async add(body: {
     debateId: string;
@@ -17,7 +22,7 @@ export class CommentService {
       return await prisma.$transaction(async tx => {
         const c = await tx.comment.create({ data: body });
         await redis.multi().incr(keyComments(body.debateId)).exec();
-        return c;
+        return toDto(c);
       });
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
@@ -55,13 +60,14 @@ export class CommentService {
       .exec();
   }
 
-  static list(debateId: string, cursor?: string, limit = 20) {
-    return prisma.comment.findMany({
+  static async list(debateId: string, cursor?: string, limit = 20) {
+    const rows = await prisma.comment.findMany({
       where: { debateId },
       orderBy: { createdAt: 'desc' },
       take: limit,
       cursor: cursor ? { id: cursor } : undefined,
       skip: cursor ? 1 : 0,
     });
+    return rows.map(toDto);
   }
 }
