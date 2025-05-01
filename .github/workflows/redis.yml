@@ -1,0 +1,49 @@
+name: Redis
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: asdf-vm/actions/setup@v3
+        with:
+          asdf-version: 'v0.13.1'
+          tool-versions: '.tool-versions'
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 10.6.5
+          run_install: false
+
+      - name: Cache asdf & pnpm
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.asdf/installs
+            ~/.asdf/download
+            ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-asdf-${{ hashFiles('.tool-versions','pnpm-lock.yaml') }}
+
+      - run: node -v
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm prisma generate
+
+      - name: Run redis reset script
+        run: pnpm ts-node scripts/redis-reset.ts
+        env:
+          UP_REDIS_REST_URL: ${{ secrets.UP_REDIS_REST_URL }}
+          UP_REDIS_REST_TOKEN: ${{ secrets.UP_REDIS_REST_TOKEN }}
