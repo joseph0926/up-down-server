@@ -12,7 +12,7 @@ import {
 
 export default fp(app => {
   app.get(
-    '/:debateId/comments',
+    '/debates/:debateId/comments',
     {
       schema: {
         params: DebateParam,

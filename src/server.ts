@@ -17,6 +17,7 @@ import { pinoLoggerOption } from './libs/logger.js';
 import { genRequestId } from './libs/request-id.js';
 import errorHandler from './plugins/error-handler.js';
 import responsePlugin from './plugins/response.js';
+import commentRoute from './routes/comment/comment.route.js';
 import debateRoute from './routes/debate/debate.route.js';
 
 export async function buildServer() {
@@ -70,6 +71,7 @@ export async function buildServer() {
   app.get('/health', () => ({ status: 'ok' }));
   app.get('/health/redis', async () => ({ pong: await app.redis.ping() }));
   app.register(debateRoute);
+  app.register(commentRoute);
 
   /** Error Handler */
   await app.register(errorHandler);
