@@ -38,6 +38,8 @@ model Debate {
   deadline DateTime
   closedAt DateTime?
 
+  proCommentLikes  Int   @default(0)
+  conCommentLikes  Int   @default(0)
   proCount         Int   @default(0)
   conCount         Int   @default(0)
   commentCount     Int   @default(0)

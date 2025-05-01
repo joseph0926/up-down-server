@@ -11,9 +11,11 @@ import swaggerPlugin from '@/plugins/swagger';
 
 import hotScoreJob from './jobs/hot-score.job.js';
 import statusSwitchJob from './jobs/status-switch.job.js';
+import syncCommentLikesJob from './jobs/sync-comment-likes.job.js';
 import syncViewsJob from './jobs/sync-views.job.js';
 import { pinoLoggerOption } from './libs/logger.js';
 import { genRequestId } from './libs/request-id.js';
+import errorHandler from './plugins/error-handler.js';
 import responsePlugin from './plugins/response.js';
 import debateRoute from './routes/debate/debate.route.js';
 
@@ -43,6 +45,7 @@ export async function buildServer() {
   await app.register(syncViewsJob);
   await app.register(statusSwitchJob);
   await app.register(hotScoreJob);
+  await app.register(syncCommentLikesJob);
 
   /** Error Helper */
   await app.register(sensible);
@@ -69,25 +72,7 @@ export async function buildServer() {
   app.register(debateRoute);
 
   /** Error Handler */
-  app.setErrorHandler((err, req, reply) => {
-    const msg =
-      err.name === 'ZodError'
-        ? (err as unknown as { errors: { message: string }[] }).errors?.[0]?.message ||
-          'Validation error'
-        : err.code === 'P2025'
-          ? 'Record not found'
-          : err.message || 'Internal error';
-
-    const status = err.statusCode ?? (err.name === 'ZodError' ? 400 : 500);
-
-    req.log.error({ err }, 'Request failed');
-
-    reply.status(status).send({
-      data: null,
-      success: false,
-      message: msg,
-    });
-  });
+  await app.register(errorHandler);
 
   return app;
 }

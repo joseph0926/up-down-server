@@ -4,10 +4,11 @@ import { AsyncTask, SimpleIntervalJob } from 'toad-scheduler';
 import { prisma } from '@/libs/prisma';
 import { keyViews } from '@/libs/redis/keys';
 
+import { runJob } from './run.job.js';
+
 export default fp(app => {
-  const task = new AsyncTask(
-    'sync-views',
-    async () => {
+  const task = new AsyncTask('sync-views', () =>
+    runJob(app.log, 'sync-views', async () => {
       const now = new Date();
       const live = await prisma.debate.findMany({
         where: { status: 'ongoing', deadline: { gt: now } },
@@ -27,10 +28,8 @@ export default fp(app => {
           }),
         ),
       );
-    },
-    err => app.log.error({ err }, 'sync-views task failed'),
+    }),
   );
 
-  const job = new SimpleIntervalJob({ minutes: 1 }, task);
-  app.scheduler.addSimpleIntervalJob(job);
+  app.scheduler.addSimpleIntervalJob(new SimpleIntervalJob({ minutes: 1 }, task));
 });

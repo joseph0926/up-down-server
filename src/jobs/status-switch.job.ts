@@ -3,10 +3,11 @@ import { AsyncTask, CronJob } from 'toad-scheduler';
 
 import { prisma } from '@/libs/prisma';
 
+import { runJob } from './run.job.js';
+
 export default fp(app => {
-  const task = new AsyncTask(
-    'status-switch',
-    async () => {
+  const task = new AsyncTask('status-switch', () =>
+    runJob(app.log, 'status-switch', async () => {
       const now = new Date();
 
       await prisma.debate.updateMany({
@@ -20,10 +21,8 @@ export default fp(app => {
       });
 
       if (closed.count) app.log.info(`status-switch closed ${closed.count}`);
-    },
-    err => app.log.error({ err }, 'status-switch task failed'),
+    }),
   );
 
-  const job = new CronJob({ cronExpression: '0 */5 * * * *' }, task);
-  app.scheduler.addCronJob(job);
+  app.scheduler.addCronJob(new CronJob({ cronExpression: '0 */5 * * * *' }, task));
 });

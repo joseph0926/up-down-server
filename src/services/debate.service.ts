@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 
+import { AppError, ErrorCode } from '@/libs/error';
 import { prisma } from '@/libs/prisma';
 import { redis } from '@/libs/redis/index';
 import { keyComments, keyParticipants, keyViews, keyVotes } from '@/libs/redis/keys';
@@ -21,104 +22,105 @@ export type RowCreated = Prisma.DebateGetPayload<{ select: typeof selectCreated 
 
 export class DebateService {
   static async getDebateList(sort: 'hot' | 'imminent' | 'latest', limit = 10, cursor?: string) {
-    let ids: string[] = [];
-    let nextCursor: string | null = null;
+    try {
+      let ids: string[] = [];
+      let nextCursor: string | null = null;
 
-    if (sort === 'hot') {
-      const [scoreCursor] = cursor?.split(':') ?? [];
-      const maxScore = scoreCursor ?? '+inf';
-      const offset = cursor ? 1 : 0;
+      if (sort === 'hot') {
+        const [scoreCursor] = cursor?.split(':') ?? [];
+        const maxScore = scoreCursor ?? '+inf';
+        const offset = cursor ? 1 : 0;
 
-      const raw = await redis.zrevrangebyscore(
-        'debate:hot',
-        maxScore,
-        '-inf',
-        'WITHSCORES',
-        'LIMIT',
-        offset,
-        limit,
-      );
+        const raw = await redis.zrevrangebyscore(
+          'debate:hot',
+          maxScore,
+          '-inf',
+          'WITHSCORES',
+          'LIMIT',
+          offset,
+          limit,
+        );
+        ids = raw.filter((_, i) => i % 2 === 0);
+        const scores = raw.filter((_, i) => i % 2 === 1);
+        if (ids.length === limit) nextCursor = `${scores.at(-1)}:${ids.at(-1)}`;
+      } else {
+        const field: SortField = sort === 'imminent' ? 'deadline' : 'createdAt';
+        const orderBy = sort === 'imminent' ? 'asc' : 'desc';
+        const selectObj = field === 'deadline' ? selectDeadline : selectCreated;
 
-      ids = raw.filter((_, i) => i % 2 === 0);
-      const scores = raw.filter((_, i) => i % 2 === 1);
+        const [tsCursor, idCursor] = cursor?.split(':') ?? [];
+        const epochCursor = tsCursor ? Number(tsCursor) : undefined;
 
-      if (ids.length === limit) {
-        nextCursor = `${scores[scores.length - 1]}:${ids[ids.length - 1]}`;
+        const whereCursor = epochCursor
+          ? {
+              OR: [
+                {
+                  [field]:
+                    orderBy === 'asc'
+                      ? { gt: new Date(epochCursor) }
+                      : { lt: new Date(epochCursor) },
+                },
+                {
+                  AND: [
+                    { [field]: new Date(epochCursor) },
+                    { id: orderBy === 'asc' ? { gt: idCursor } : { lt: idCursor } },
+                  ],
+                },
+              ],
+            }
+          : undefined;
+
+        const rows = await prisma.debate.findMany({
+          where: whereCursor,
+          orderBy: [{ [field]: orderBy }, { id: orderBy }] as const,
+          take: limit,
+          select: selectObj,
+        });
+
+        ids = rows.map(r => r.id);
+        if (rows.length === limit) {
+          const last = rows.at(-1) as RowDeadline | RowCreated;
+          const lastDate =
+            field === 'deadline' ? (last as RowDeadline).deadline : (last as RowCreated).createdAt;
+          nextCursor = `${lastDate.getTime()}:${last.id}`;
+        }
       }
-    } else {
-      const field: SortField = sort === 'imminent' ? 'deadline' : 'createdAt';
-      const orderBy = sort === 'imminent' ? 'asc' : 'desc';
 
-      const selectObj = field === 'deadline' ? selectDeadline : selectCreated;
+      if (!ids.length) return { items: [], nextCursor: null };
 
-      const [tsCursor, idCursor] = cursor?.split(':') ?? [];
-      const epochCursor = tsCursor ? Number(tsCursor) : undefined;
+      const rows = await prisma.debate.findMany({ where: { id: { in: ids } } });
+      const map = new Map(rows.map(r => [r.id, r]));
 
-      const whereCursor = epochCursor
-        ? {
-            OR: [
-              {
-                [field]:
-                  orderBy === 'asc' ? { gt: new Date(epochCursor) } : { lt: new Date(epochCursor) },
-              },
-              {
-                AND: [
-                  { [field]: new Date(epochCursor) },
-                  { id: orderBy === 'asc' ? { gt: idCursor } : { lt: idCursor } },
-                ],
-              },
-            ],
-          }
-        : undefined;
+      const items = ids
+        .map(id => map.get(id)!)
+        .map(row => ({
+          id: row.id,
+          title: row.title,
+          content: row.content,
+          status: row.status,
+          deadline: row.deadline.toISOString(),
+          dDay: Math.ceil((row.deadline.getTime() - Date.now()) / 86_400_000),
+          proRatio: ratio(row.proCount, row.conCount),
+          conRatio: ratio(row.conCount, row.proCount),
+          commentCount: row.commentCount,
+          viewCount: row.viewCount,
+          hotScore: row.hotScore,
+          thumbUrl: row.thumbUrl,
+        }));
 
-      const rows = await prisma.debate.findMany({
-        where: whereCursor,
-        orderBy: [{ [field]: orderBy }, { id: orderBy }] as const,
-        take: limit,
-        select: selectObj,
-      });
-
-      ids = rows.map(r => r.id);
-
-      if (rows.length === limit) {
-        const last = rows[rows.length - 1] as RowDeadline | RowCreated;
-        const lastDate =
-          field === 'deadline' ? (last as RowDeadline).deadline : (last as RowCreated).createdAt;
-        nextCursor = `${lastDate.getTime()}:${last.id}`;
-      }
+      return { items, nextCursor };
+    } catch (e) {
+      console.error(e);
+      throw new AppError(ErrorCode.INTERNAL, '토론 목록 조회 실패', 500);
     }
-
-    if (!ids.length) return { items: [], nextCursor: null };
-
-    const full = await prisma.debate.findMany({ where: { id: { in: ids } } });
-    const map = new Map(full.map(r => [r.id, r]));
-
-    const items = ids
-      .map(id => map.get(id))
-      .filter(row => !!row)
-      .map(row => ({
-        id: row.id,
-        title: row.title,
-        content: row.content,
-        status: row.status,
-        deadline: row.deadline.toISOString(),
-        dDay: Math.ceil((row.deadline.getTime() - Date.now()) / 86_400_000),
-        proRatio: row.proCount + row.conCount ? row.proCount / (row.proCount + row.conCount) : 0,
-        conRatio: row.proCount + row.conCount ? row.conCount / (row.proCount + row.conCount) : 0,
-        commentCount: row.commentCount,
-        viewCount: row.viewCount,
-        hotScore: row.hotScore,
-        thumbUrl: row.thumbUrl,
-      }));
-
-    return { items, nextCursor };
   }
 
   static async getById(id: string) {
-    const debate = await prisma.debate.findUniqueOrThrow({
+    const debate = await prisma.debate.findUnique({
       where: { id },
       include: { category: true },
     });
+    if (!debate) throw new AppError(ErrorCode.NOT_FOUND, '토론을 찾을 수 없습니다.', 404);
 
     await redis
       .multi()
@@ -129,50 +131,16 @@ export class DebateService {
     return {
       ...debate,
       dDay: Math.ceil((debate.deadline.getTime() - Date.now()) / 86_400_000),
-      proRatio:
-        debate.proCount + debate.conCount
-          ? debate.proCount / (debate.proCount + debate.conCount)
-          : 0,
-      conRatio:
-        debate.proCount + debate.conCount
-          ? debate.conCount / (debate.proCount + debate.conCount)
-          : 0,
+      proRatio: ratio(debate.proCount, debate.conCount),
+      conRatio: ratio(debate.conCount, debate.proCount),
     };
   }
 
   static async listHot(limit = 10) {
     const ids = await redis.zrevrange('debate:hot', 0, limit - 1);
-
     const rows = await prisma.debate.findMany({ where: { id: { in: ids } } });
     const map = new Map(rows.map(r => [r.id, r]));
     return ids.map(id => map.get(id)).filter(Boolean);
-  }
-
-  static async addComment({
-    debateId,
-    side,
-    nickname,
-    content,
-    ipHash,
-  }: {
-    debateId: string;
-    side: 'PRO' | 'CON';
-    nickname: string;
-    content: string;
-    ipHash: string;
-  }) {
-    return prisma.$transaction(async tx => {
-      await tx.comment.create({
-        data: { debateId, side, nickname, content },
-      });
-
-      await redis
-        .multi()
-        .incr(keyComments(debateId))
-        .hincrby(keyVotes(debateId), side.toLowerCase(), 1)
-        .sadd(keyParticipants(debateId), ipHash)
-        .exec();
-    });
   }
 
   static async recalcHot(id: string) {
@@ -180,8 +148,10 @@ export class DebateService {
       redis.get(keyViews(id)),
       redis.get(keyComments(id)),
       redis.scard(keyParticipants(id)),
-      prisma.debate.findUniqueOrThrow({ where: { id } }),
+      prisma.debate.findUnique({ where: { id } }),
     ]);
+
+    if (!debate) throw new AppError(ErrorCode.NOT_FOUND, '토론을 찾을 수 없습니다.', 404);
 
     const score = calcHotScore({
       views: Number(v ?? 0),
@@ -198,39 +168,44 @@ export class DebateService {
     return score;
   }
 
-  static async create({
-    title,
-    content,
-    startAt,
-    deadline,
-    categoryId,
-  }: {
+  static async create(dto: {
     title: string;
     content?: string;
     startAt?: Date | string;
     deadline: Date | string;
     categoryId?: number;
   }) {
-    const debate = await prisma.debate.create({
-      data: {
-        title,
-        content,
-        startAt: startAt ? new Date(startAt) : undefined,
-        deadline: new Date(deadline),
-        categoryId,
-        status: startAt && new Date(startAt) > new Date() ? 'upcoming' : 'ongoing',
-      },
-    });
+    try {
+      const debate = await prisma.debate.create({
+        data: {
+          title: dto.title,
+          content: dto.content,
+          startAt: dto.startAt ? new Date(dto.startAt) : undefined,
+          deadline: new Date(dto.deadline),
+          categoryId: dto.categoryId,
+          status: dto.startAt && new Date(dto.startAt) > new Date() ? 'upcoming' : 'ongoing',
+        },
+      });
 
-    const pipeline = redis
-      .multi()
-      .set(keyViews(debate.id), 0, 'EXAT', Math.floor(debate.deadline.getTime() / 1000))
-      .set(keyComments(debate.id), 0, 'EXAT', Math.floor(debate.deadline.getTime() / 1000))
-      .del(keyVotes(debate.id))
-      .del(keyParticipants(debate.id))
-      .zadd('debate:hot', 0, debate.id);
+      await redis
+        .multi()
+        .set(keyViews(debate.id), 0, 'EXAT', Math.floor(debate.deadline.getTime() / 1000))
+        .set(keyComments(debate.id), 0, 'EXAT', Math.floor(debate.deadline.getTime() / 1000))
+        .del(keyVotes(debate.id))
+        .del(keyParticipants(debate.id))
+        .zadd('debate:hot', 0, debate.id)
+        .exec();
 
-    await pipeline.exec();
-    return debate;
+      return debate;
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
+        throw new AppError(ErrorCode.NOT_FOUND, '카테고리를 찾을 수 없습니다.', 404);
+      }
+      throw new AppError(ErrorCode.INTERNAL, '토론 생성 실패', 500);
+    }
   }
+}
+
+function ratio(a: number, b: number) {
+  return a + b ? a / (a + b) : 0;
 }

@@ -7,6 +7,8 @@ import { prisma } from '@/libs/prisma';
 import { keyComments, keyParticipants, keyViews } from '@/libs/redis/keys';
 import { calcHotScore } from '@/libs/utils/hot-score';
 
+import { runJob } from './run.job.js';
+
 async function safeUpdate(app: FastifyInstance, id: string, score: number) {
   try {
     await prisma.debate.update({ where: { id }, data: { hotScore: score } });
@@ -20,52 +22,46 @@ async function safeUpdate(app: FastifyInstance, id: string, score: number) {
 }
 
 export default fp(app => {
-  const task = new AsyncTask(
-    'hot-score',
-    async () => {
+  const task = new AsyncTask('hot-score', () =>
+    runJob(app.log, 'hot-score', async () => {
       const ids = await app.redis.zrange('debate:hot', 0, -1);
       if (!ids.length) return;
 
       const pipe = app.redis.pipeline();
-      ids.forEach(id => {
-        pipe.get(keyViews(id));
-        pipe.get(keyComments(id));
-        pipe.scard(keyParticipants(id));
-      });
+      ids.forEach(id => pipe.get(keyViews(id)).get(keyComments(id)).scard(keyParticipants(id)));
       const raw = (await pipe.exec()) ?? [];
 
-      const existing = await prisma.debate.findMany({
-        where: { id: { in: ids } },
-        select: { id: true },
-      });
-      const alive = new Set(existing.map(d => d.id));
+      const existing = new Set(
+        (await prisma.debate.findMany({ where: { id: { in: ids } }, select: { id: true } })).map(
+          d => d.id,
+        ),
+      );
 
       const zPipe = app.redis.pipeline();
-      const updatePromises: Promise<unknown>[] = [];
+      const promiseArr: Promise<unknown>[] = [];
       const now = Date.now();
 
-      ids.forEach((id, idx) => {
-        const offset = idx * 3;
-        const views = Number(raw[offset]?.[1] ?? 0);
-        const comments = Number(raw[offset + 1]?.[1] ?? 0);
-        const participants = Number(raw[offset + 2]?.[1] ?? 0);
+      ids.forEach((id, i) => {
+        const offset = i * 3;
+        const score = calcHotScore({
+          views: Number(raw[offset]?.[1] ?? 0),
+          comments: Number(raw[offset + 1]?.[1] ?? 0),
+          participants: Number(raw[offset + 2]?.[1] ?? 0),
+          startAt: now,
+        });
 
-        const score = calcHotScore({ views, comments, participants, startAt: now });
-
-        if (!alive.has(id)) {
+        if (!existing.has(id)) {
           zPipe.zrem('debate:hot', id);
           return;
         }
 
         zPipe.zadd('debate:hot', score, id);
-        updatePromises.push(safeUpdate(app, id, score));
+        promiseArr.push(safeUpdate(app, id, score));
       });
 
-      await Promise.all([zPipe.exec(), Promise.all(updatePromises)]);
-    },
-    err => app.log.error({ err }, 'hot-score task 실패'),
+      await Promise.all([zPipe.exec(), Promise.all(promiseArr)]);
+    }),
   );
 
-  const job = new CronJob({ cronExpression: '15 * * * * *' }, task);
-  app.scheduler.addCronJob(job);
+  app.scheduler.addCronJob(new CronJob({ cronExpression: '15 * * * * *' }, task));
 });
