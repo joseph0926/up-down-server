@@ -39,9 +39,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install -g typescript ts-node
 
-      - name: Generate Prisma Client
-        run: pnpm prisma generate
-
       - name: Run redis reset script
         run: pnpm ts-node scripts/redis-reset.ts
         env:
