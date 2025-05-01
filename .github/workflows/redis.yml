@@ -37,10 +37,13 @@ jobs:
       - run: node -v
 
       - name: Install dependencies
-        run: pnpm install -g typescript ts-node
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm prisma generate
 
       - name: Run redis reset script
-        run: pnpm ts-node scripts/redis-reset.ts
+        run: pnpm run redis:reset
         env:
           UP_REDIS_REST_URL: ${{ secrets.UP_REDIS_REST_URL }}
           UP_REDIS_REST_TOKEN: ${{ secrets.UP_REDIS_REST_TOKEN }}

@@ -20,7 +20,8 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "prepare": "husky"
+    "prepare": "husky",
+    "redis:reset": "tsx scripts/redis-reset.ts"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
