@@ -4,6 +4,7 @@ import { AppError, ErrorCode } from '@/libs/error';
 import { prisma } from '@/libs/prisma';
 import { redis } from '@/libs/redis/index';
 import { keyComments, keySideLikes, keyTopSide } from '@/libs/redis/keys';
+import { hashIp } from '@/libs/utils/hash';
 
 const toDto = (row: Prisma.CommentUncheckedCreateInput) => ({
   ...row,
@@ -11,16 +12,27 @@ const toDto = (row: Prisma.CommentUncheckedCreateInput) => ({
 });
 
 export class CommentService {
-  static async add(body: {
-    debateId: string;
-    side: 'PRO' | 'CON';
-    nickname: string;
-    content: string;
-    ipHash: string;
-  }) {
+  static async add(
+    body: {
+      debateId: string;
+      side: 'PRO' | 'CON';
+      nickname: string;
+      content: string;
+    },
+    clientIp: string | null,
+  ) {
+    if (!clientIp) {
+      throw new AppError(ErrorCode.INTERNAL, 'IP를 확인할 수 없습니다.', 400);
+    }
+
+    const data = {
+      ...body,
+      ipHash: hashIp(clientIp),
+    };
+
     try {
       return await prisma.$transaction(async tx => {
-        const c = await tx.comment.create({ data: body });
+        const c = await tx.comment.create({ data });
         await redis.multi().incr(keyComments(body.debateId)).exec();
         return toDto(c);
       });

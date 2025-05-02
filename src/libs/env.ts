@@ -23,6 +23,7 @@ export const config = cleanEnv(process.env, {
   REDIS_URL: str(),
   CORS_ORIGIN: str(),
   COOKIE_SECRET: str(),
+  IP_HASH_SECRET: str(),
 } as const);
 
 export type Env = Readonly<typeof config>;

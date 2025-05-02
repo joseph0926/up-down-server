@@ -71,6 +71,7 @@ model Comment {
   side      Side
   likes     Int      @default(0)
   createdAt DateTime @default(now())
+  ipHash    String   @db.VarChar(64)
 
   likesLog CommentLike[]
 

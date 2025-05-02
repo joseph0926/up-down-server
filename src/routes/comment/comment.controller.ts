@@ -23,7 +23,7 @@ export const getCommentList = async (req: FastifyRequest) => {
 
 export const addComment = async (req: FastifyRequest) => {
   const dto = CommentBody.parse(req.body);
-  await CommentService.add({ ...dto, ipHash: req.ip });
+  await CommentService.add(dto, req.ip);
   return CommentOk.parse({ ok: true });
 };
 

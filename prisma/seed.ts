@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 import { faker } from '@faker-js/faker/locale/ko';
 import { PrismaClient, Side, Status } from '@prisma/client';
 
@@ -49,21 +51,32 @@ const ENDINGS = ['찬성 vs. 반대?', '도입이 필요할까?', '효과 있을
 const rand = (min: number, max: number) => faker.number.int({ min, max });
 const pick = <T>(arr: T[]) => faker.helpers.arrayElement(arr);
 
-const mdContent = (title: string) => `## ${title}
+const htmlContent = (title: string) => `
+<h2>${title}</h2>
+<h3>배경</h3>
+<p>${faker.lorem.paragraph()}</p>
 
-### 배경
-${faker.lorem.paragraph()}
+<h3>찬성 의견</h3>
+<ul>
+  <li>${faker.lorem.sentence()}</li>
+  <li>${faker.lorem.sentence()}</li>
+</ul>
 
-### 찬성 의견
-- ${faker.lorem.sentence()}
-- ${faker.lorem.sentence()}
+<h3>반대 의견</h3>
+<ol>
+  <li>${faker.lorem.sentence()}</li>
+  <li>${faker.lorem.sentence()}</li>
+</ol>
 
-### 반대 의견
-1. ${faker.lorem.sentence()}
-2. ${faker.lorem.sentence()}
-
-> **당신의 생각은?** 댓글로 자유롭게 토론해 주세요.
+<blockquote><strong>당신의 생각은?</strong> 댓글로 자유롭게 토론해 주세요.</blockquote>
 `;
+
+const randomIp = () => `${rand(1, 255)}.${rand(0, 255)}.${rand(0, 255)}.${rand(0, 255)}`;
+export const hashIp = (ip: string) =>
+  crypto
+    .createHash('sha256')
+    .update(`${ip}56a62b815b7a6486743410ed87225bc519567e5049fdcff04c0c3ed269afc1b1`)
+    .digest('hex');
 
 async function main() {
   console.time('seed');
@@ -87,19 +100,23 @@ async function main() {
     const closedAt = isClosed ? faker.date.recent({ days: 3 }) : null;
 
     const commentN = rand(0, 25);
-    const comments = Array.from({ length: commentN }).map(() => ({
-      nickname: faker.internet.username(),
-      content: faker.lorem.sentences({ min: 1, max: 3 }),
-      side: pick(['PRO', 'CON']) as Side,
-      likes: rand(0, 20),
-    }));
+    const comments = Array.from({ length: commentN }).map(() => {
+      const ip = randomIp();
+      return {
+        nickname: faker.internet.username(),
+        content: faker.lorem.sentences({ min: 1, max: 3 }),
+        side: pick(['PRO', 'CON']) as Side,
+        likes: rand(0, 20),
+        ipHash: hashIp(ip),
+      };
+    });
     const proCnt = comments.filter(c => c.side === 'PRO').length;
     const conCnt = commentN - proCnt;
 
     const debate = await prisma.debate.create({
       data: {
         title,
-        content: mdContent(title),
+        content: htmlContent(title),
         status,
         startAt: status === Status.closed ? null : startAt,
         deadline,
