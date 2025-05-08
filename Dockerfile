@@ -2,11 +2,9 @@ ARG NODE_VERSION=22-alpine
 ARG PNPM_VERSION=8.15.4
 
 FROM node:${NODE_VERSION} AS builder
-
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 WORKDIR /app
-ENV NODE_ENV=development
 
 COPY package.json pnpm-lock.yaml .npmrc* ./
 RUN pnpm install --frozen-lockfile --prod=false
@@ -15,9 +13,8 @@ COPY prisma ./prisma
 COPY tsconfig*.json vitest.config.ts ./
 COPY src ./src
 COPY assets ./assets
-COPY scripts ./scripts
 
-RUN pnpm run db:gen:dev
+RUN pnpm run db:gen
 RUN pnpm run build
 
 FROM node:${NODE_VERSION} AS runtime
