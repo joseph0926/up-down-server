@@ -74,6 +74,9 @@ importers:
       pino:
         specifier: ^9.6.0
         version: 9.6.0
+      pino-loki:
+        specifier: ^2.5.0
+        version: 2.5.0
       pino-pretty:
         specifier: ^13.0.0
         version: 13.0.0
@@ -120,9 +123,6 @@ importers:
       lint-staged:
         specifier: ^15.5.1
         version: 15.5.1
-      pino-loki:
-        specifier: ^2.5.0
-        version: 2.5.0
       prettier:
         specifier: ^3.5.3
         version: 3.5.3
