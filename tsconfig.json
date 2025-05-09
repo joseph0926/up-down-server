@@ -14,5 +14,10 @@
     },
     "allowImportingTsExtensions": false
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "tsc-alias": {
+    "resolveFullPaths": true,
+    "resolveFullExtension": ".js",
+    "verbose": false
+  }
 }
