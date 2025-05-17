@@ -141,4 +141,4 @@ pnpm test --watch   # 개발용 Watch
 
 ## 라이선스 <a id="라이선스"></a>
 
-MIT License © 2025 Up & Down Team
+본 프로젝트는 MIT 라이선스로 배포됩니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참고하세요.
