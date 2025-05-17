@@ -58,14 +58,24 @@ pnpm i
 cp .env.example .env
 # .env 파일 수정 (PORT, DATABASE_URL 등)
 
-# 3. 개발 모드 (ts-node + HMR)
+# 3. 데이터베이스 초기화
+pnpm db:push:dev
+pnpm db:seed:dev
+
+# 4. 개발 모드 (ts-node + HMR)
 pnpm dev
 
-# 4. Swagger 문서
+# 5. Swagger 문서
 # -> http://localhost:4000/docs
 ```
 
 > 기본 포트 **4000**
+
+필요할 경우 Redis 데이터를 초기화하려면 아래 명령어를 실행합니다.
+
+```bash
+pnpm redis:reset # scripts/redis-reset.ts 실행
+```
 
 ---
 
