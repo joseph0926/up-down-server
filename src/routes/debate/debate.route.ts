@@ -17,6 +17,8 @@ export default fp(app => {
       schema: {
         querystring: DebateListQuery,
         response: { 200: ResDebateList },
+        summary: '토론 목록',
+        tags: ['Debate'],
       },
     },
     async (req, reply) => {
@@ -31,6 +33,8 @@ export default fp(app => {
       schema: {
         params: DebateIdParam,
         response: { 200: ResDebateDetail },
+        summary: '토론 디테일',
+        tags: ['Debate'],
       },
     },
     async (req, reply) => {
@@ -45,6 +49,8 @@ export default fp(app => {
       schema: {
         body: CreateDebateBody,
         response: { 201: ResCreateDebate },
+        summary: '토론 생성',
+        tags: ['Debate'],
       },
     },
     async (req, reply) => {

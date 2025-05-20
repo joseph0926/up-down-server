@@ -18,6 +18,8 @@ export default fp(app => {
         params: DebateParam,
         querystring: CommentListQuery,
         response: { 200: ResCommentList },
+        summary: '댓글 목록',
+        tags: ['Comment'],
       },
     },
     async (req, reply) => reply.ok(await getCommentList(req)),
@@ -29,6 +31,8 @@ export default fp(app => {
       schema: {
         body: CommentBody,
         response: { 200: ResCommentOk },
+        summary: '댓글 생성',
+        tags: ['Comment'],
       },
     },
     async (req, reply) => reply.ok(await addComment(req), '댓글이 등록되었습니다.'),
@@ -40,6 +44,8 @@ export default fp(app => {
       schema: {
         params: CommentLikeParam,
         response: { 200: ResCommentOk },
+        summary: '댓글 좋아요',
+        tags: ['Comment'],
       },
     },
     async (req, reply) => reply.ok(await likeComment(req)),

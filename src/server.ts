@@ -20,6 +20,7 @@ import errorHandler from './plugins/error-handler.js';
 import responsePlugin from './plugins/response.js';
 import commentRoute from './routes/comment/comment.route.js';
 import debateRoute from './routes/debate/debate.route.js';
+import keywordRoute from './routes/keyword/keyword.route.js';
 
 export async function buildServer() {
   /**
@@ -74,6 +75,7 @@ export async function buildServer() {
   app.get('/health/redis', async () => ({ pong: await app.redis.ping() }));
   app.register(debateRoute);
   app.register(commentRoute);
+  app.register(keywordRoute);
 
   /** Error Handler */
   await app.register(errorHandler);

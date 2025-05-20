@@ -1,10 +1,11 @@
 import { FastifyInstance } from 'fastify';
+import fp from 'fastify-plugin';
 
 import { apiFail } from '@/schemas/common.schema';
 import { LiveKeyword, LiveKeywordResponse } from '@/schemas/keyword.schema';
 import { getLiveKeywords } from '@/services/keyword.service';
 
-const route = (app: FastifyInstance) => {
+export default fp((app: FastifyInstance) => {
   app.get(
     '/keywords/live',
     {
@@ -60,6 +61,4 @@ const route = (app: FastifyInstance) => {
 
     req.raw.on('close', () => clearInterval(timer));
   });
-};
-
-export default route;
+});
