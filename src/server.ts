@@ -10,6 +10,7 @@ import securityPlugin from '@/plugins/security';
 import swaggerPlugin from '@/plugins/swagger';
 
 import hotScoreJob from './jobs/hot-score.job.js';
+import keywordJob from './jobs/keyword.job.js';
 import statusSwitchJob from './jobs/status-switch.job.js';
 import syncCommentLikesJob from './jobs/sync-comment-likes.job.js';
 import syncViewsJob from './jobs/sync-views.job.js';
@@ -47,6 +48,7 @@ export async function buildServer() {
   await app.register(statusSwitchJob);
   await app.register(hotScoreJob);
   await app.register(syncCommentLikesJob);
+  await app.register(keywordJob);
 
   /** Error Helper */
   await app.register(sensible);
