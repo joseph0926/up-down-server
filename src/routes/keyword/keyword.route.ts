@@ -44,14 +44,12 @@ export default fp((app: FastifyInstance) => {
 
     if (allowed.includes(origin)) {
       console.log(origin);
-      reply.header('Access-Control-Allow-Origin', origin);
-      reply.header('Access-Control-Allow-Credentials', 'true');
+      reply.raw.setHeader('Access-Control-Allow-Origin', origin);
+      reply.raw.setHeader('Access-Control-Allow-Credentials', 'true');
+      reply.raw.setHeader('Content-Type', 'text/event-stream');
+      reply.raw.setHeader('Cache-Control', 'no-cache');
+      reply.raw.setHeader('Connection', 'keep-alive');
     }
-
-    reply
-      .header('Content-Type', 'text/event-stream')
-      .header('Cache-Control', 'no-cache')
-      .header('Connection', 'keep-alive');
 
     reply.raw.flushHeaders();
 
