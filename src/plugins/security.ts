@@ -1,7 +1,6 @@
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import csrf from '@fastify/csrf-protection';
-import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import fp from 'fastify-plugin';
 
@@ -11,15 +10,12 @@ import { config } from '@/libs/env';
  * 보안 플러그인
  */
 export default fp(async app => {
-  /* Helmet + CSP + cors */
-  await app.register(helmet, {
-    global: true,
-    contentSecurityPolicy: false,
-  });
+  /*  CSP + cors */
   await app.register(cors, {
     origin: config.CORS_ORIGIN.split(','),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    hook: 'preHandler',
   });
 
   /* Rate-Limit */

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import fp from 'fastify-plugin';
 
+import { config } from '@/libs/env';
 import { apiFail } from '@/schemas/common.schema';
 import { LiveKeyword, LiveKeywordResponse } from '@/schemas/keyword.schema';
 import { getLiveKeywords } from '@/services/keyword.service';
@@ -38,9 +39,21 @@ export default fp((app: FastifyInstance) => {
     },
   );
   app.get('/keywords/live/stream', async (req, reply) => {
-    reply.raw.setHeader('Content-Type', 'text/event-stream');
-    reply.raw.setHeader('Cache-Control', 'no-cache');
-    reply.raw.setHeader('Connection', 'keep-alive');
+    const allowed = config.CORS_ORIGIN.split(',');
+    const origin = req.headers.origin ?? '';
+
+    if (allowed.includes(origin)) {
+      console.log(origin);
+      reply.header('Access-Control-Allow-Origin', origin);
+      reply.header('Access-Control-Allow-Credentials', 'true');
+    }
+
+    reply
+      .header('Content-Type', 'text/event-stream')
+      .header('Cache-Control', 'no-cache')
+      .header('Connection', 'keep-alive');
+
+    reply.raw.flushHeaders();
 
     const push = (keywords: LiveKeyword[]) =>
       reply.raw.write(

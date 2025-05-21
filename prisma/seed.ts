@@ -157,6 +157,24 @@ async function main() {
     }
   }
 
+  const keywords: { word: string; score: number }[] = [
+    { word: '총선', score: rand(80, 150) },
+    { word: '공매도', score: rand(40, 100) },
+    { word: '주4일제', score: rand(30, 90) },
+    { word: 'AI규제', score: rand(20, 70) },
+    { word: '부동산', score: rand(10, 60) },
+  ];
+
+  const max = Math.max(...keywords.map(k => k.score)) || 1;
+
+  const multi = redis.multi();
+  keywords.forEach(k => {
+    multi.zadd('live:kw', k.score, k.word);
+    const idx = Math.round((k.score / max) * 100);
+    multi.hset('live:kw:index', k.word, idx);
+  });
+  await multi.exec();
+
   console.timeEnd('seed');
   console.log('✅  All seed data inserted');
 }
