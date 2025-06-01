@@ -58,6 +58,8 @@ function toListItem(row: DebateFull) {
     dDay: dDay(row.deadline),
     proRatio: ratio(row.proCount, row.conCount),
     conRatio: ratio(row.conCount, row.proCount),
+    proCount: row.proCount,
+    conCount: row.conCount,
     commentCount: row.commentCount,
     viewCount: row.viewCount,
     hotScore: row.hotScore,
