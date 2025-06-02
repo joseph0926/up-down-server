@@ -20,6 +20,8 @@ export const DebateListItem = z.object({
   dDay: z.number().int(),
   proRatio: z.number(),
   conRatio: z.number(),
+  proCount: z.number(),
+  conCount: z.number(),
   commentCount: z.number(),
   viewCount: z.number(),
   hotScore: z.number(),
