@@ -26,13 +26,14 @@ export const CommentSchema = z.object({
   content: z.string(),
   side: CommentSide,
   likes: z.number(),
+  liked: z.boolean().default(false),
   createdAt: ISO,
 });
 
 export const CommentList = cursorList(CommentSchema);
 export const ResCommentList = apiResponse(CommentList);
 
-export const CommentOk = z.object({ ok: z.literal(true) });
+export const CommentOk = z.object({ liked: z.boolean() });
 export const ResCommentOk = apiResponse(CommentOk);
 
 export type CommentDto = z.infer<typeof CommentSchema>;
