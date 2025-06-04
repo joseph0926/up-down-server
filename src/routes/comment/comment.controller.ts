@@ -9,6 +9,7 @@ import {
   CommentListQuery,
   CommentOk,
   DebateParam,
+  ResBestComments,
 } from './comment.schema.js';
 
 export const getCommentList = async (req: FastifyRequest) => {
@@ -31,4 +32,10 @@ export const likeComment = async (req: FastifyRequest) => {
   const { id } = CommentLikeParam.parse(req.params);
   const { liked } = await CommentService.toggleLike(id, req.ip);
   return CommentOk.parse({ liked });
+};
+
+export const getBestComments = async (req: FastifyRequest) => {
+  const { id } = CommentLikeParam.parse(req.params);
+  const payload = await CommentService.bestComments(id);
+  return ResBestComments.parse(payload);
 };

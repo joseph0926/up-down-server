@@ -38,3 +38,11 @@ export const ResCommentOk = apiResponse(CommentOk);
 
 export type CommentDto = z.infer<typeof CommentSchema>;
 export type CommentListDto = z.infer<typeof ResCommentList>['data'];
+
+export const BestComments = z.object({
+  pro: z.array(CommentSchema),
+  con: z.array(CommentSchema),
+});
+
+export const ResBestComments = apiResponse(BestComments);
+export type BestCommentsDto = z.infer<typeof ResBestComments>['data'];

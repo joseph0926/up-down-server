@@ -1,11 +1,12 @@
 import fp from 'fastify-plugin';
 
-import { addComment, getCommentList, likeComment } from './comment.controller.js';
+import { addComment, getBestComments, getCommentList, likeComment } from './comment.controller.js';
 import {
   CommentBody,
   CommentLikeParam,
   CommentListQuery,
   DebateParam,
+  ResBestComments,
   ResCommentList,
   ResCommentOk,
 } from './comment.schema.js';
@@ -49,5 +50,18 @@ export default fp(app => {
       },
     },
     async (req, reply) => reply.ok(await likeComment(req)),
+  );
+
+  app.get(
+    '/debates/:debateId/best-comments',
+    {
+      schema: {
+        params: DebateParam,
+        response: { 200: ResBestComments },
+        summary: '베스트 댓글 (각 진영 최고 좋아요)',
+        tags: ['Comment'],
+      },
+    },
+    async (req, reply) => reply.ok(await getBestComments(req)),
   );
 });
