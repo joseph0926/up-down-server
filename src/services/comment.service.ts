@@ -5,13 +5,25 @@ import { prisma } from '@/libs/prisma';
 import { redis } from '@/libs/redis/index';
 import { keyComments, keySideLikes, keyTopSide } from '@/libs/redis/keys';
 import { hashIp } from '@/libs/utils/hash';
+import { CommentDto } from '@/routes/comment/comment.schema';
 
+const toCommentDto = (row: Comment) => ({
+  id: row.id,
+  debateId: row.debateId,
+  nickname: row.nickname,
+  content: row.content,
+  side: row.side,
+  likes: row.likes,
+  createdAt: typeof row.createdAt === 'string' ? row.createdAt : row.createdAt?.toISOString(),
+  liked: false as const,
+  ipHash: row.ipHash,
+});
 const toDto = (row: Prisma.CommentUncheckedCreateInput) => ({
   ...row,
   createdAt: typeof row.createdAt === 'string' ? row.createdAt : row.createdAt?.toISOString(),
 });
 
-async function fetchBySide(debateId: string, side: 'PRO' | 'CON'): Promise<Comment[]> {
+async function fetchBySide(debateId: string, side: 'PRO' | 'CON'): Promise<CommentDto[]> {
   const [, topScoreStr] = await redis.zrevrange(keyTopSide(debateId, side), 0, 0, 'WITHSCORES');
 
   let topScore = topScoreStr ? Number(topScoreStr) : undefined;
@@ -38,10 +50,11 @@ async function fetchBySide(debateId: string, side: 'PRO' | 'CON'): Promise<Comme
   const ids = await redis.zrevrangebyscore(keyTopSide(debateId, side), topScore, topScore);
   if (!ids.length) return [];
 
-  return prisma.comment.findMany({
+  const rows = await prisma.comment.findMany({
     where: { id: { in: ids } },
     orderBy: { createdAt: 'asc' },
   });
+  return rows.map(toCommentDto);
 }
 
 export class CommentService {
@@ -172,7 +185,7 @@ export class CommentService {
     }));
   }
 
-  static async bestComments(debateId: string): Promise<{ pro: Comment[]; con: Comment[] }> {
+  static async bestComments(debateId: string): Promise<{ pro: CommentDto[]; con: CommentDto[] }> {
     const [pro, con] = await Promise.all([
       fetchBySide(debateId, 'PRO'),
       fetchBySide(debateId, 'CON'),

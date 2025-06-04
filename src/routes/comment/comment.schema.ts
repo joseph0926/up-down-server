@@ -39,6 +39,7 @@ export const ResCommentOk = apiResponse(CommentOk);
 export type CommentDto = z.infer<typeof CommentSchema>;
 export type CommentListDto = z.infer<typeof ResCommentList>['data'];
 
+export const BestCommentsParam = z.object({ debateId: z.string().cuid() });
 export const BestComments = z.object({
   pro: z.array(CommentSchema),
   con: z.array(CommentSchema),
